@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="rover_arm">
+  <xacro:include filename="$(find rover_arm_description)/urdf/rover_arm.urdf.xacro"/>
+
+  <link name="world"/>
+  <link name="arm_base_link"/>
+  <joint name="world_to_base_link" type="fixed">
+    <parent link="world"/>
+    <child link="arm_base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:rover_arm parent="arm_base_link" prefix="">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:rover_arm>
+
+  <link name="tool0"/>
+  <joint name="ee_base_to_tool0" type="fixed">
+    <parent link="ee_base"/>
+    <child link="tool0"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:include filename="$(find rover_arm_description)/urdf/rover_arm.ros2_control.xacro" />
+  <xacro:arm_ros2_control name="rover_arm" use_gazebo="$(optenv use_gazebo false)"/>
+
+  <xacro:if value="$(optenv use_gazebo false)">
+    <gazebo>
+      <plugin filename="libgz_ros2_control-system" name="">
+        <parameters>$(optenv arm_ctrl_yaml /tmp/arm_controller.yaml)</parameters>
+      </plugin>
+    </gazebo>
+  </xacro:if>
+</robot>

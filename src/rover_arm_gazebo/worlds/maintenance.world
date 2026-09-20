@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="maintenance_task">
+    <physics type="ode">
+      <max_step_size>0.002</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>500</real_time_update_rate>
+    </physics>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <gui fullscreen="0">
+      <camera name="main_camera">
+        <pose>1.5 -1.2 1.0 0 0.35 2.2</pose>
+        <view_controller>orbit</view_controller>
+      </camera>
+    </gui>
+
+    <scene>
+      <ambient>0.4 0.4 0.4 1.0</ambient>
+      <background>0.3 0.3 0.4 1.0</background>
+      <shadows>true</shadows>
+    </scene>
+  </world>
+</sdf>

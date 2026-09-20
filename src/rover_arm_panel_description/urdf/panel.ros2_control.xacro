@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="panel_ros2_control" params="name use_gazebo:=false">
+
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <xacro:if value="${use_gazebo}">
+          <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+        </xacro:if>
+        <xacro:unless value="${use_gazebo}">
+          <plugin>mock_components/GenericSystem</plugin>
+        </xacro:unless>
+      </hardware>
+
+      <!-- Main switch (lever) -->
+      <joint name="main_switch">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position">
+          <param name="min">-1.57</param>
+          <param name="max">1.57</param>
+        </command_interface>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <!-- Lever switches -->
+      <joint name="lever_switch_1">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position">
+          <param name="min">-1.57</param>
+          <param name="max">1.57</param>
+        </command_interface>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="lever_switch_2">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position">
+          <param name="min">-1.57</param>
+          <param name="max">1.57</param>
+        </command_interface>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="lever_switch_3">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position">
+          <param name="min">-1.57</param>
+          <param name="max">1.57</param>
+        </command_interface>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="lever_switch_4">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position">
+          <param name="min">-1.57</param>
+          <param name="max">1.57</param>
+        </command_interface>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <!-- Rotary switches -->
+      <joint name="rotary_switch_1">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position"/>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="rotary_switch_2">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position"/>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="rotary_switch_3">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position"/>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="rotary_switch_4">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position"/>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="rotary_switch_5">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position"/>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <!-- Power switches -->
+      <joint name="power_switch_1">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position"/>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+      <joint name="power_switch_2">
+        <xacro:unless value="${use_gazebo}">
+        <command_interface name="position"/>
+        </xacro:unless>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+
+    </ros2_control>
+
+  </xacro:macro>
+
+</robot>

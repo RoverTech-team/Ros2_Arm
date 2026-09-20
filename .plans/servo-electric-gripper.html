@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan — Servo-Electric Parallel Gripper End Effector</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1d21; --muted: #5b6470; --accent: #0b6bcb;
+    --accent-bg: #e8f1fb; --good: #177245; --good-bg: #e6f4ec;
+    --warn: #9a5b00; --warn-bg: #fdf3e3; --bad: #b3261e; --bad-bg: #fdecea;
+    --border: #d8dde3; --code-bg: #f4f6f8; --block-bg: #fafbfc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --fg: #e6e9ee; --muted: #9aa4b0; --accent: #6cb2f7;
+      --accent-bg: #14283f; --good: #58c98b; --good-bg: #12281c;
+      --warn: #e0a04c; --warn-bg: #2e2413; --bad: #f0786e; --bad-bg: #341614;
+      --border: #2a3038; --code-bg: #161a20; --block-bg: #13161b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 24px 80px; }
+  h1 { font-size: 26px; margin: 8px 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 10px; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 16px; margin: 24px 0 8px; }
+  p { margin: 8px 0; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .badge { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .b-good { background: var(--good-bg); color: var(--good); }
+  .b-warn { background: var(--warn-bg); color: var(--warn); }
+  .b-bad  { background: var(--bad-bg); color: var(--bad); }
+  .b-info { background: var(--accent-bg); color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13.5px; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--block-bg); font-weight: 600; }
+  code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px;
+         padding: 1px 5px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+        padding: 14px 16px; overflow-x: auto; font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 12.5px; line-height: 1.5; }
+  pre.diff b { color: var(--good); font-weight: 600; }
+  pre.diff i { color: var(--bad); font-style: normal; font-weight: 600; }
+  .card { background: var(--block-bg); border: 1px solid var(--border); border-radius: 10px;
+          padding: 14px 18px; margin: 14px 0; }
+  .blocker { border-left: 4px solid var(--warn); }
+  .kv { font-size: 13px; color: var(--muted); }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 3px 0; }
+  footer { margin-top: 60px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Servo-Electric Mechanical Impactive Parallel Gripper</h1>
+<div class="meta">
+  Repo: <code>Ros_control</code> · Package: <code>rover_arm_description</code> (+ demo/control stack) ·
+  Status: <span class="badge b-warn">PLANNED — NOT IMPLEMENTED</span> · v1.0 · Aug 02 2026
+</div>
+
+<h2 id="toc">Contents</h2>
+<ul class="toc">
+  <li><a href="#objective">1. Objective</a></li>
+  <li><a href="#current">2. Current arm chain &amp; control stack</a></li>
+  <li><a href="#decisions">3. Design decisions (confirmed with the user)</a></li>
+  <li><a href="#spec">4. Gripper mechanical spec (servo-electric)</a></li>
+  <li><a href="#urdf">5. URDF architecture &amp; diff</a></li>
+  <li><a href="#control">6. ros2_control &amp; controller diffs</a></li>
+  <li><a href="#launch">7. Launch diff</a></li>
+  <li><a href="#moveit">8. MoveIt / SRDF diff</a></li>
+  <li><a href="#integration">9. Integration with the knob-interaction plan</a></li>
+  <li><a href="#blockers">10. Blocker analysis</a></li>
+  <li><a href="#steps">11. Implementation steps &amp; validation</a></li>
+  <li><a href="#files">12. Files touched</a></li>
+</ul>
+
+<h2 id="objective">1. Objective</h2>
+<p>Replace the arm's bare cylinder tip (<code>j5</code> + <code>tool0</code>) with a <b>mechanical impactive parallel gripper, servo-electric actuated</b> (electric servo motor + leadscrew/rack translating two mirrored jaws), integrated end-to-end: URDF, ros2_control (Gazebo + mock), controllers, MoveIt/SRDF, launch, and the panel-interaction demo (grasp-based knob interaction).</p>
+
+<h2 id="current">2. Current arm chain &amp; control stack</h2>
+<table>
+  <tr><th>Layer</th><th>Current state</th></tr>
+  <tr><td>Kinematics</td><td><code>base_link → j1 → j2 → j3 → j4 (fixed) → j5 (continuous Z wrist) → tool0</code> — j5 = Ø60×60 cylinder tip, mass 0.2; <code>tool0</code> inertial-only frame 40 mm beyond the tip (<code>rover_arm.urdf.xacro:112–138, 186–199</code>).</td></tr>
+  <tr><td>Hardware</td><td><code>rover_arm.ros2_control.xacro</code> — <code>arm_ros2_control</code> macro: <code>gz_ros2_control/GazeboSimSystem</code> in Gazebo, <code>mock_components/GenericSystem</code> in mock; interfaces for joint_1/2/3/5.</td></tr>
+  <tr><td>Controllers</td><td><code>arm_controller</code> (JointTrajectoryController, 4 joints) — Gazebo branch: <code>my_robot_mock_controllers.yaml</code>; mock branch: <code>my_robot_controllers.yaml</code>; standalone <code>arm_controller.yaml</code>.</td></tr>
+  <tr><td>MoveIt</td><td>Group <code>arm</code> (4 joints), chain <code>arm_chain</code> tip <code>tool0</code>, KDL IK; <code>moveit_controllers.yaml</code> has only <code>arm_controller</code>.</td></tr>
+  <tr><td>Launch</td><td><code>panel_interaction_demo.launch.py</code> spawns <code>arm_controller</code> in both modes (lines 216–221 mock, 324–333 gazebo).</td></tr>
+  <tr><td>Gripper support</td><td><code>gripper_controllers</code> package <b>already installed</b> in <code>ros2_humble</code> ✓.</td></tr>
+</table>
+
+<h2 id="decisions">3. Design decisions (confirmed with the user)</h2>
+<table>
+  <tr><th>Decision</th><th>Choice</th><th>Rationale</th></tr>
+  <tr><td>Mounting</td><td><b>Keep j5 wrist roll; gripper mounts on j5</b>, replacing the j5 tip + tool0</td><td>Wrist roll is essential to orient the jaws toward the panel knobs.</td></tr>
+  <tr><td>Jaw model</td><td><b>2 mirrored prismatic joints</b> (<code>gripper_left_jaw_joint</code> / <code>gripper_right_jaw_joint</code>)</td><td>Standard sim parallel gripper; controlled by a joint_trajectory_controller over both jaws (Humble-native); servo-electric = leadscrew translating both jaws (kinematic model + effort/velocity caps).</td></tr>
+  <tr><td>Control</td><td><b><code>joint_trajectory_controller/JointTrajectoryController</code> over both jaw joints</b></td><td>Humble ships no multi-joint GripperCommand controller (GripperActionController is single-DOF only, GripperCommandController arrived in newer releases); JTC over the 2 jaw joints works identically in Gazebo and mock; the demo drives it via a FollowJointTrajectory action client.</td></tr>
+  <tr><td>Stroke</td><td><b>40 mm opening</b> (±20 mm per jaw)</td><td>Envelopes power knobs Ø32, rotary knobs Ø24, lever tips 8×6 mm → grasp-and-rotate for ALL knobs; no friction drags needed.</td></tr>
+</table>
+
+<h2 id="spec">4. Gripper mechanical spec (servo-electric)</h2>
+<table>
+  <tr><th>Parameter</th><th>Value</th><th>Notes</th></tr>
+  <tr><td>Type</td><td>Mechanical impactive, parallel jaws</td><td>Two rigid jaws translating symmetrically</td></tr>
+  <tr><td>Actuation</td><td>Servo-electric: DC servo motor → leadscrew/rack</td><td>In sim: position-controlled prismatic joints with effort (force) + velocity limits</td></tr>
+  <tr><td>Stroke</td><td>0…40 mm (jaw position 0.0 = closed, 0.02 m = open)</td><td>Jaw position convention shared by both joints</td></tr>
+  <tr><td>Max grip force</td><td>≤ 60 N pinch (30 N per jaw linear thrust)</td><td>URDF <code>effort="30"</code> caps physics force</td></tr>
+  <tr><td>Speed</td><td>0.05 m/s jaw velocity</td><td>URDF <code>velocity="0.05"</code></td></tr>
+  <tr><td>Jaw geometry</td><td>8 mm thick × 50 mm tall × 40 mm deep, 2 mm rubber pad on inner face</td><td>Primitive boxes for v1 (consistent with j4/j5); DAE meshes later</td></tr>
+  <tr><td>Finger pads</td><td>μ ≈ 1.0–1.5 via <code>&lt;gazebo reference&gt;</code> surface</td><td>Ensures grasp grip on knob surfaces</td></tr>
+  <tr><td>Mass budget</td><td>gripper_base 0.25 kg + 2×0.05 kg jaws + 0.01 tool0 ≈ 0.36 kg</td><td>vs 0.2+0.01 today; EE inertia increase is small</td></tr>
+  <tr><td>Tool frame</td><td><code>tool0</code> = mid-jaw grasp plane at jaw tips (kept name)</td><td>Minimizes MoveIt/demo churn; grasp-center semantics</td></tr>
+</table>
+
+<h3>Force budget vs knobs</h3>
+<table>
+  <tr><th>Case</th><th>Required</th><th>Available</th><th>Verdict</th></tr>
+  <tr><td>Lever flip while grasped (detent 0.4 → max 0.63 N·m at midpoint, arm swings the lever)</td><td>≈ 18 N tangential at the 35 mm tip</td><td>Pinch 40–60 N × μ ≈ 1.0–1.5 = 40–90 N</td><td><span class="badge b-good">OK</span></td></tr>
+  <tr><td>Rotary/power spin by wrist roll (pinched Ø24/Ø32, friction 0.05/0.08 N·m)</td><td>≈ 4–7 N tangential at r12/16</td><td>Pinch 40–60 N × μ</td><td><span class="badge b-good">OK</span></td></tr>
+  <tr><td>Jaw joint reaction on the arm (60 N max at ~0.1 m)</td><td>≤ 6 N·m at wrist</td><td>j5/JTC position control; j2/j3 50 N·m</td><td><span class="badge b-good">OK</span></td></tr>
+</table>
+
+<h2 id="urdf">5. URDF architecture &amp; diff</h2>
+<h3>5.1 New chain</h3>
+<pre>j5 (unchanged wrist) → j5_to_gripper_base (fixed, 0 0 0.03) → gripper_base (servo housing)
+  → gripper_left_jaw_joint  (prismatic, axis +X, 0…0.02) → gripper_left_jaw
+  → gripper_right_jaw_joint (prismatic, axis −X, 0…0.02) → gripper_right_jaw   (mirrored)
+  → gripper_base_to_tool0   (fixed, 0 0 0.065) → tool0 (mid-jaw grasp plane)</pre>
+
+<h3>5.2 <code>rover_arm.urdf.xacro</code> — replace tool0 link (lines 132–138) and j5_to_tool0 (lines 194–199)</h3>
+<pre class="diff">i    &lt;!-- J5 (cylinder tip, primitive visual) --&gt;      [unchanged — j5 stays]
+i    &lt;!-- Tool0 (tip link for MoveIt2) --&gt;
+i    &lt;link name="tool0"&gt; ... &lt;/link&gt;
+i
+i    &lt;joint name="j5_to_tool0" type="fixed"&gt;
+i      &lt;parent link="j5"/&gt;&lt;child link="tool0"/&gt;
+i      &lt;origin xyz="0 0 0.04" rpy="0 0 0"/&gt;
+i    &lt;/joint&gt;
++
+b    &lt;!-- ============ SERVO-ELECTRIC PARALLEL GRIPPER ============ --&gt;
+b    &lt;link name="gripper_base"&gt;
+b      &lt;visual&gt;
+b        &lt;origin xyz="0 0 0.025" rpy="0 0 0"/&gt;
+b        &lt;geometry&gt;&lt;box size="0.06 0.06 0.05"/&gt;&lt;/geometry&gt;
+b        &lt;material name="dark"&gt;&lt;color rgba="0.25 0.25 0.28 1"/&gt;&lt;/material&gt;
+b      &lt;/visual&gt;
+b      &lt;collision&gt;
+b        &lt;origin xyz="0 0 0.025" rpy="0 0 0"/&gt;
+b        &lt;geometry&gt;&lt;box size="0.06 0.06 0.05"/&gt;&lt;/geometry&gt;
+b      &lt;/collision&gt;
+b      &lt;inertial&gt;
+b        &lt;mass value="0.25"/&gt;
+b        &lt;inertia ixx="0.0002" ixy="0" ixz="0" iyy="0.0002" iyz="0" izz="0.0002"/&gt;
+b      &lt;/inertial&gt;
+b    &lt;/link&gt;
+b
+b    &lt;!-- Left jaw: metal 6 mm + rubber pad 2 mm on the inner face.
+b         Box centered at x=-0.004 → inner face at x=0 when closed. --&gt;
+b    &lt;link name="gripper_left_jaw"&gt;
+b      &lt;visual&gt;
+b        &lt;origin xyz="-0.004 0 0" rpy="0 0 0"/&gt;
+b        &lt;geometry&gt;&lt;box size="0.006 0.05 0.04"/&gt;&lt;/geometry&gt;
+b        &lt;material name="aluminium"&gt;&lt;color rgba="0.75 0.75 0.78 1"/&gt;&lt;/material&gt;
+b      &lt;/visual&gt;
+b      &lt;collision&gt;
+b        &lt;origin xyz="-0.007 0 0" rpy="0 0 0"/&gt;
+b        &lt;geometry&gt;&lt;box size="0.002 0.05 0.04"/&gt;&lt;/geometry&gt;
+b      &lt;/collision&gt;
+b      &lt;inertial&gt;
+b        &lt;mass value="0.05"/&gt;
+b        &lt;inertia ixx="1e-5" ixy="0" ixz="0" iyy="1e-5" iyz="0" izz="1e-5"/&gt;
+b      &lt;/inertial&gt;
+b    &lt;/link&gt;
+b    &lt;!-- Right jaw: mirror (box centered at x=+0.004, pad at x=+0.007) --&gt;
+b
+b    &lt;joint name="j5_to_gripper_base" type="fixed"&gt;
+b      &lt;parent link="j5"/&gt;&lt;child link="gripper_base"/&gt;
+b      &lt;origin xyz="0 0 0.03" rpy="0 0 0"/&gt;   &lt;!-- on the j5 tip end face --&gt;
+b    &lt;/joint&gt;
+b
+b    &lt;joint name="gripper_left_jaw_joint" type="prismatic"&gt;
+b      &lt;parent link="gripper_base"/&gt;&lt;child link="gripper_left_jaw"/&gt;
+b      &lt;origin xyz="0 0 0.045" rpy="0 0 0"/&gt;
+b      &lt;axis xyz="1 0 0"/&gt;
+b      &lt;limit lower="0.0" upper="0.02" effort="30.0" velocity="0.05"/&gt;
+b    &lt;/joint&gt;
+b
+b    &lt;joint name="gripper_right_jaw_joint" type="prismatic"&gt;
+b      &lt;parent link="gripper_base"/&gt;&lt;child link="gripper_right_jaw"/&gt;
+b      &lt;origin xyz="0 0 0.045" rpy="0 0 0"/&gt;
+b      &lt;axis xyz="-1 0 0"/&gt;                     &lt;!-- mirrored: same command opens both --&gt;
+b      &lt;limit lower="0.0" upper="0.02" effort="30.0" velocity="0.05"/&gt;
+b    &lt;/joint&gt;
+b
+b    &lt;!-- tool0 = mid-jaw grasp plane at the jaw tips (0.065 from gripper_base) --&gt;
+b    &lt;joint name="gripper_base_to_tool0" type="fixed"&gt;
+b      &lt;parent link="gripper_base"/&gt;&lt;child link="tool0"/&gt;
+b      &lt;origin xyz="0 0 0.065" rpy="0 0 0"/&gt;
+b    &lt;/joint&gt;
++
+    &lt;!-- tool0 link block (lines 132–138) is KEPT as-is (inertial-only, mass 0.01) --&gt;</pre>
+<p class="kv">Jaw position convention: <code>0.0 = closed</code> (pad faces touching at x=0), <code>0.02 = open</code> (40 mm gap). Both joints take the same command value — mirrored axes make both jaws move symmetrically outward. Pad surface friction block (optional if E2 shows slip): <code>&lt;gazebo reference="gripper_left_jaw"&gt;&lt;mu1&gt;1.5&lt;/mu1&gt;&lt;mu2&gt;1.5&lt;/mu2&gt;&lt;/gazebo&gt;</code> (same for right jaw).</p>
+
+<h2 id="control">6. ros2_control &amp; controller diffs</h2>
+<h3>6.1 <code>rover_arm.ros2_control.xacro</code> — add jaw interfaces (after joint_5 block, line 68)</h3>
+<pre class="diff">      &lt;joint name="joint_5"&gt; ... &lt;/joint&gt;
++
+b      &lt;joint name="gripper_left_jaw_joint"&gt;
+b        &lt;command_interface name="position"&gt;
+b          &lt;param name="min"&gt;0.0&lt;/param&gt;
+b          &lt;param name="max"&gt;0.02&lt;/param&gt;
+b        &lt;/command_interface&gt;
+b        &lt;state_interface name="position"&gt;
+b          &lt;param name="initial_value"&gt;0.0&lt;/param&gt;
+b        &lt;/state_interface&gt;
+b        &lt;state_interface name="velocity"/&gt;
+b      &lt;/joint&gt;
+b      &lt;joint name="gripper_right_jaw_joint"&gt;
+b        &lt;!-- identical block (min 0.0 / max 0.02) --&gt;
+b      &lt;/joint&gt;</pre>
+<p class="kv">This macro is shared by Gazebo (<code>arm.urdf.xacro</code>, <code>my_robot_mock.urdf.xacro</code>) and mock (<code>arm_mounted.urdf.xacro</code>, <code>my_robot.urdf.xacro</code>) — one change covers both worlds.</p>
+
+<h3>6.2 Controller configs — add to BOTH <code>my_robot_mock_controllers.yaml</code> (gazebo branch) and <code>my_robot_controllers.yaml</code> (mock branch)</h3>
+<pre class="diff">    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
++
+b    gripper_controller:
+b      type: joint_trajectory_controller/JointTrajectoryController
+...
+b    gripper_controller:
+b      ros__parameters:
+b        joints:
+b          - gripper_left_jaw_joint
+b          - gripper_right_jaw_joint
+b        command_interfaces:
+b          - position
+b        state_interfaces:
+b          - position
+b          - velocity
+b        action_monitor_rate: 20.0</pre>
+<p class="kv">(Same block optionally added to <code>rover_arm_description/bringup/config/arm_controller.yaml</code> for the standalone arm bringup.)</p>
+
+<h2 id="launch">7. Launch diff — <code>panel_interaction_demo.launch.py</code></h2>
+<pre class="diff">i    mock_arm_ctrl_spawner = Node(... "arm_controller" ... condition=UnlessCondition(use_gazebo))   [line 216]
+b    mock_gripper_ctrl_spawner = Node(
+b        package="controller_manager", executable="spawner",
+b        arguments=["gripper_controller", "--param-file", mock_controllers_config],
+b        condition=UnlessCondition(use_gazebo),
+b    )
+b    # + RegisterEventHandler: after mock_jsb_spawner exits → mock_gripper_ctrl_spawner (mirror of the arm_controller delay, line 223)
+
+i    gazebo_arm_ctrl_spawner = Node(... "arm_controller" ... "--controller-manager", "/controller_manager", ...)   [line 324]
+b    gazebo_gripper_ctrl_spawner = Node(
+b        package="controller_manager", executable="spawner",
+b        arguments=["gripper_controller", "--param-file", gazebo_controllers_config,
+b                   "--controller-manager", "/controller_manager",
+b                   "--controller-manager-timeout", "30"],
+b        condition=IfCondition(use_gazebo),
+b    )
+b    # + RegisterEventHandler: after gazebo_jsb_spawner exits → gazebo_gripper_ctrl_spawner</pre>
+
+<h2 id="moveit">8. MoveIt / SRDF diff — <code>rover_with_arm.srdf</code> (mirror in <code>rover_arm.srdf</code>)</h2>
+<pre class="diff">i    &lt;group name="arm_chain"&gt; ... tip tool0 ... &lt;/group&gt;      [unchanged — tool0 kept as tip]
++
+b    &lt;group name="gripper"&gt;
+b      &lt;joint name="gripper_left_jaw_joint"/&gt;
+b      &lt;joint name="gripper_right_jaw_joint"/&gt;
+b    &lt;/group&gt;
+b    &lt;group_state name="open" group="gripper"&gt;
+b      &lt;joint name="gripper_left_jaw_joint" value="0.02"/&gt;
+b      &lt;joint name="gripper_right_jaw_joint" value="0.02"/&gt;
+b    &lt;/group_state&gt;
+b    &lt;group_state name="closed" group="gripper"&gt;
+b      &lt;joint name="gripper_left_jaw_joint" value="0.0"/&gt;
+b      &lt;joint name="gripper_right_jaw_joint" value="0.0"/&gt;
+b    &lt;/group_state&gt;
+i    &lt;passive_joint name="j5_to_tool0"/&gt;
+i    &lt;disable_collisions link1="j5" link2="tool0" reason="Adjacent"/&gt;
+i    &lt;disable_collisions link1="j4" link2="j5" reason="Adjacent"/&gt;
+b    &lt;passive_joint name="j5_to_gripper_base"/&gt;
+b    &lt;passive_joint name="gripper_base_to_tool0"/&gt;
+b    &lt;disable_collisions link1="j5" link2="gripper_base" reason="Adjacent"/&gt;
+b    &lt;disable_collisions link1="gripper_base" link2="gripper_left_jaw" reason="Adjacent"/&gt;
+b    &lt;disable_collisions link1="gripper_base" link2="gripper_right_jaw" reason="Adjacent"/&gt;</pre>
+
+<h3>8.1 <code>moveit_controllers.yaml</code></h3>
+<pre class="diff">    controller_names:
+      - arm_controller
+b     - gripper_controller
+...
+b    gripper_controller:
+b      type: FollowJointTrajectory
+b      action_ns: follow_joint_trajectory
+b      default: false
+b      joints:
+b        - gripper_left_jaw_joint
+b        - gripper_right_jaw_joint</pre>
+
+<h2 id="integration">9. Integration with the knob-interaction plan</h2>
+<p class="kv">This plan replaces the mechanical assumptions of <a href="closed-loop-knob-interaction.html">closed-loop-knob-interaction.html</a> — the <b>pushes become grasps</b>:</p>
+<table>
+  <tr><th>Element</th><th>Before (bare tip)</th><th>After (gripper)</th><th>Verify (unchanged)</th></tr>
+  <tr><td>LEVER (5)</td><td>Friction push of the tip up/down</td><td>Approach with jaws open (gap ≥ 10 mm) over the 8×6 mm tip → close (grasp) → <b>arm swings the lever</b> (planned OMPL pose-to-pose; spring finishes past midpoint) → open → retract</td><td>|θ| ≥ 1.0 rad</td></tr>
+  <tr><td>ROTARY / POWER (7)</td><td>Side-press + friction drag</td><td>Approach with <b>tool0 z along the knob axis</b> (vertical), jaws open ≥ knob Ø (24/32 mm ≤ 40 mm ✓) → drop over the knob → close (pinch) → <b>wrist roll (j5) spins the knob</b> → open → retract</td><td>|Δθ| ≥ 2.0 rad (wrap-safe)</td></tr>
+  <tr><td>POKE (5)</td><td>Flat-face press</td><td>Unchanged (tool0-plane press 15 mm; tool0 is now the grasp plane)</td><td>execution + arm tracking</td></tr>
+</table>
+<ul>
+  <li><b>tool0 rule changes</b>: old "tip face = tool0 − 40 mm" → new "grasp plane = tool0" (tool0 at 0.065 from gripper_base). All pose math in the demo updates.</li>
+  <li>Grasp poses replace push poses in the element table; the IK/clearance probe (E1 of the interaction plan) is <b>re-run with gripper geometry</b> (jaws open, jaw volume accounted).</li>
+  <li>Retry semantics: failure → re-grasp with +2 mm jaw pressure / deeper drop, max 1 retry (same shape as before).</li>
+  <li>Demo gains a <code>FollowJointTrajectory</code> action client (<code>/gripper_controller/follow_joint_trajectory</code>, both jaw joints) with <code>open()/close()</code> helpers; success still gated by <code>/panel/joint_states</code>.</li>
+</ul>
+
+<h2 id="blockers">10. Blocker analysis</h2>
+
+<div class="card blocker">
+<h3>G1 — IK reachability with the longer end effector <span class="badge b-bad">HIGH</span></h3>
+<p><b>What:</b> tool0 moves from 40 mm to 95 mm beyond j5; the "grasp-from-above" pose for rotary knobs (tool0 z vertical over the knob row at x≈1.475, z≈0.32) and grasp-over-the-tip poses for levers must be reachable with 4 DOF.</p>
+<p><b>Impact:</b> Some grasp poses may be infeasible (tip pointing down at 1.5 m reach).</p>
+<p><b>Mitigation:</b> Re-run the IK probe (interaction plan E1) with the gripper model before writing demo code; per-element fallback chain (grasp from front vs above; pinch + swing instead of wrist-spin).</p>
+<p><b>Residual risk:</b> MEDIUM — fallbacks exist for every knob, verified in E2.</p>
+</div>
+
+<div class="card blocker">
+<h3>G2 — Self-collision &amp; planning scene with jaws <span class="badge b-warn">MEDIUM</span></h3>
+<p><b>What:</b> The jaws are new collision bodies in OMPL planning (open state during approach — the planner sees the robot_description state ✓). Adjacent-link pairs must be disabled (SRDF diff §8); jaws vs panel/knobs must <b>not</b> be disabled (they must avoid the panel while moving).</p>
+<p><b>Impact:</b> Planning failures or illegal grazing if pairs are wrong.</p>
+<p><b>Mitigation:</b> SRDF pairs per §8; E1 probe samples approach paths with jaws open; verify no jaw-panel contact during approaches in E2/E3.</p>
+</div>
+
+<div class="card blocker">
+<h3>G3 — Grasp force vs knob resistance <span class="badge b-warn">MEDIUM</span></h3>
+<p><b>What:</b> Lever detent (0.4 N·m/rad → 0.63 N·m max ≈ 18 N at the 35 mm tip) and rotary friction (0.05/0.08 N·m) must be beaten while the grasp holds (pinch 40–60 N × μ ≈ 1.0–1.5 → 40–90 N tangential ✓ per §4 budget).</p>
+<p><b>Impact:</b> If the pad μ is low or the pinch force is capped by physics, the knob slips out mid-swing.</p>
+<p><b>Verification experiment (E2):</b> grasp-flip one lever and grasp-spin one rotary; if slip: add pad surface μ (1.5) in the xacro and/or raise <code>effort</code> to 40 N.</p>
+</div>
+
+<div class="card blocker">
+<h3>G4 — Prismatic joints through gz_ros2_control/GazeboSimSystem <span class="badge b-warn">MEDIUM</span></h3>
+<p><b>What:</b> The jaw joints are new prismatic DOF in the same <code>ros2_control</code> block driven by the gz plugin; URDF <code>&lt;limit effort&gt;</code> caps the physics force; the JTC-style position commands must convert cleanly (URDF → SDF conversion of prismatic joints is standard ✓).</p>
+<p><b>Impact:</b> Controller/hardware mismatch symptoms (NaN, unresponsive jaws) if interfaces are misdeclared.</p>
+<p><b>Verification experiment (V2):</b> after build, <code>gz sdf -p</code> the URDF and <code>ros2 action send_goal /gripper_controller/follow_joint_trajectory</code> (positions 0.02) in both modes; confirm jaw positions in <code>/joint_states</code> and physics motion in the GUI.</p>
+</div>
+
+<div class="card blocker">
+<h3>G5 — Mock parity <span class="badge b-good">LOW</span></h3>
+<p><b>What:</b> mock_components/GenericSystem supports prismatic ✓; the gripper_controller must be spawned in the mock branch too (launch diff §7) and the demo's <code>interact</code> flag (mock = execution-only) still applies.</p>
+<p><b>Impact:</b> None if the spawner + config diffs land in both branches.</p>
+</div>
+
+<div class="card blocker">
+<h3>G6 — tool0 redefinition ripple <span class="badge b-warn">MEDIUM</span></h3>
+<p><b>What:</b> tool0 semantics change (grasp plane vs tip face); the interaction plan's pose math, the 40 mm rule, and any pose references in the demo/README must be updated coherently.</p>
+<p><b>Impact:</b> Inconsistent poses (off-by-55 mm mistakes) if done piecemeal.</p>
+<p><b>Mitigation:</b> Single source of truth: a <code>GRIPPER_TOOL0_OFFSET</code> constant + per-element grasp table generated by the probe; both plans' documents cross-referenced.</p>
+</div>
+
+<div class="card blocker">
+<h3>G7 — Servo-electric fidelity <span class="badge b-good">LOW</span></h3>
+<p><b>What:</b> v1 models the servo as a position-commanded prismatic joint with force/velocity caps (kinematic). No torque/force-control loop, no current limits, no servo PID.</p>
+<p><b>Impact:</b> None for the demo; grasp force is only implicitly controlled (joint effort caps).</p>
+<p><b>Future work:</b> add an <code>effort</code> command interface + force feedback via GripperCommand <code>max_effort</code> if pinch-force control is ever needed.</p>
+</div>
+
+<div class="card blocker">
+<h3>G8 — Visual meshes <span class="badge b-good">LOW</span></h3>
+<p><b>What:</b> Primitives for v1 (consistent with j4/j5); DAE files for the housing/jaws later.</p>
+</div>
+
+<h2 id="steps">11. Implementation steps &amp; validation</h2>
+<table>
+  <tr><th>#</th><th>Step</th><th>Pass criteria</th></tr>
+  <tr><td>1</td><td>URDF diff (§5) + ros2_control diff (§6.1)</td><td><code>xacro</code> builds; <code>gz sdf -p</code> converts with prismatic joints valid; joint limits correct in the SDF</td></tr>
+  <tr><td>2</td><td>Controller configs (§6.2) + launch spawners (§7) + SRDF/moveit (§8)</td><td>gripper_controller active in BOTH modes; <code>ros2 action list</code> shows <code>/gripper_controller/follow_joint_trajectory</code>; send_goal 0.02 opens jaws (GUI + /joint_states)</td></tr>
+  <tr><td>3</td><td>Re-run IK probe (interaction plan E1) with gripper geometry</td><td>17/17 elements have ≥ 1 feasible grasp variant; approach paths (jaws open) clear panel ≥ 5 mm</td></tr>
+  <tr><td>4</td><td>E2 — grasp tests: one lever grasp-flip, one rotary grasp-spin</td><td>flip → |θ| ≥ 1.0 and stays; spin → |Δθ| ≥ 2 rad; grasp holds (no slip); panel stays (0,0,0.005) zero-rotation</td></tr>
+  <tr><td>5</td><td>Demo integration (§9) — GripperCommand client + grasp sequences</td><td><code>panel_interaction_demo.cpp</code> builds</td></tr>
+  <tr><td>6</td><td>E3 — full gazebo demo</td><td>17/17 with grasp-based verifications; logs show knob deltas; panel upright</td></tr>
+  <tr><td>7</td><td>E4 — mock regression</td><td>17/17 via execution semantics; gripper responds to commands</td></tr>
+</table>
+<p>Rough estimate: steps 1–2 ≈ half a day (URDF/control plumbing), steps 3–4 ≈ half a day (probe + grasp tests), steps 5–7 ≈ half a day to a day. Total ≈ 1–1.5 days.</p>
+
+<h2 id="files">12. Files touched</h2>
+<ul>
+  <li><code>src/rover_arm_description/urdf/rover_arm.urdf.xacro</code> — gripper assembly (replaces tool0 link + j5_to_tool0).</li>
+  <li><code>src/rover_arm_description/urdf/rover_arm.ros2_control.xacro</code> — jaw interfaces (shared Gazebo+mock).</li>
+  <li><code>src/my_robot_bringup/config/my_robot_controllers.yaml</code> + <code>my_robot_mock_controllers.yaml</code> — gripper_controller (both branches).</li>
+  <li><code>src/rover_arm_moveit_config/config/moveit_controllers.yaml</code>, <code>rover_with_arm.srdf</code>, <code>rover_arm.srdf</code> — gripper group, states, passive joints, disable pairs.</li>
+  <li><code>src/rover_arm_panel_description/launch/panel_interaction_demo.launch.py</code> — 2 spawner nodes + delay handlers.</li>
+  <li>(integration) <code>src/rover_arm_moveit_config/src/panel_interaction_demo.cpp</code> — GripperCommand client + grasp sequences (see §9).</li>
+  <li>(optional) <code>rover_arm_description/bringup/config/arm_controller.yaml</code>, README updates.</li>
+</ul>
+
+<footer>
+Plan generated by opencode · v1.0 · Aug 02 2026 ·
+Companion: <a href="closed-loop-knob-interaction.html">closed-loop-knob-interaction.html</a> (grasp-based delta in §9)
+</footer>
+</div>
+</body>
+</html>

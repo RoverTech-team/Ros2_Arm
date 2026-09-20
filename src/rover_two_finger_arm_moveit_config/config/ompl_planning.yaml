@@ -1,0 +1,53 @@
+planning_plugin: ompl_interface/OMPLPlanner
+request_adapters: >-
+  default_planner_request_adapters/AddTimeParameterization
+  default_planner_request_adapters/ResolveConstraintFrames
+  default_planner_request_adapters/FixWorkspaceBounds
+  default_planner_request_adapters/FixStartStateBounds
+  default_planner_request_adapters/FixStartStateCollision
+  default_planner_request_adapters/FixStartStatePathConstraints
+start_state_max_bounds_error: 0.1
+planner_configs:
+  RRTConnectkConfigDefault:
+    type: geometric::RRTConnect
+    range: 0.0
+    goal_bias: 0.05
+    interpolate: false
+    max_planning_time: 10.0
+  BKPIECEkConfigDefault:
+    type: geometric::BKPIECE
+    range: 0.0
+    border_fraction: 0.9
+    min_valid_path_fraction: 0.5
+  KPIECEkConfigDefault:
+    type: geometric::KPIECE
+    range: 0.0
+    goal_bias: 0.05
+    border_fraction: 0.9
+    min_valid_path_fraction: 0.5
+  RRTstarkConfigDefault:
+    type: geometric::RRTstar
+    range: 0.0
+    goal_bias: 0.05
+    delay_collision_checking: 1
+  TRRTkConfigDefault:
+    type: geometric::TRRT
+    range: 0.0
+    goal_bias: 0.05
+    max_states_failed: 10
+    temp_change_factor: 2.0
+    min_temperature: 10e-10
+    init_temperature: 10e-6
+    frountier_threshold: 0.0
+    frountier_node_ratio: 0.1
+    k_constant: 0.0
+
+arm:
+  planner_configs:
+    - RRTConnectkConfigDefault
+    - BKPIECEkConfigDefault
+    - KPIECEkConfigDefault
+    - RRTstarkConfigDefault
+    - TRRTkConfigDefault
+  projection_evaluator: joints(j1_joint,j2_joint)
+  longest_valid_segment_fraction: 0.05

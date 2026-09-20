@@ -1,0 +1,23 @@
+# Physics tuning parameters for Gazebo simulation
+gazebo:
+  ros__parameters:
+    publish_rate: 50.0
+    enable_ros_network: true
+
+physics:
+  type: ode
+  max_step_size: 0.002
+  real_time_factor: 1.0
+  real_time_update_rate: 500
+  gravity:
+    x: 0
+    y: 0
+    z: -9.81
+
+# Panel enclosure is static — position controlled via ros2_control
+panel:
+  use_gazebo: true
+  switch_detent_torque: 0.5
+  switch_damping: 0.05
+  lever_threshold: 0.8
+  rotary_friction: 0.02

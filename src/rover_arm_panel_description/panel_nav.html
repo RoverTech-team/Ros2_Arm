@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Interaction Demo — Nav2 Integration Plan</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 960px;
+    margin: 2em auto;
+    padding: 0 1em;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fafafa;
+  }
+  h1 { border-bottom: 2px solid #2563eb; padding-bottom: .3em; }
+  h2 { color: #2563eb; margin-top: 2em; border-bottom: 1px solid #ddd; padding-bottom: .2em; }
+  h3 { color: #374151; margin-top: 1.5em; }
+  ul, ol { padding-left: 1.5em; }
+  li { margin-bottom: .3em; }
+  code {
+    background: #e5e7eb; padding: .15em .4em; border-radius: 4px; font-size: .9em;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  }
+  pre {
+    background: #1e1e2e; color: #cdd6f4; padding: 1em; border-radius: 8px;
+    overflow-x: auto; font-size: .85em; line-height: 1.4;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  }
+  pre .kw  { color: #cba6f7; } /* keyword */
+  pre .str { color: #a6e3a1; } /* string */
+  pre .cm  { color: #6c7086; } /* comment */
+  pre .fn  { color: #89b4fa; } /* function */
+  pre .num { color: #fab387; } /* number */
+  pre .tp  { color: #f9e2af; } /* type */
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #d1d5db; padding: .5em .75em; text-align: left; vertical-align: top; }
+  th { background: #2563eb; color: white; font-weight: 600; }
+  tr:nth-child(even) { background: #f3f4f6; }
+  .tag { display: inline-block; padding: .15em .6em; border-radius: 12px; font-size: .75em; font-weight: 600; color: white; }
+  .tag-create { background: #059669; }
+  .tag-modify { background: #d97706; }
+  .tag-delete { background: #dc2626; }
+  .tag-info { background: #6b7280; }
+  .diagram {
+    background: #f0f4ff; border: 1px solid #93c5fd; border-radius: 8px;
+    padding: 1.5em; margin: 1em 0; font-family: "SF Mono", monospace; font-size: .85em;
+    line-height: 1.5; white-space: pre; overflow-x: auto;
+  }
+  .callout {
+    background: #fef3c7; border-left: 4px solid #f59e0b; padding: 1em 1.25em;
+    margin: 1em 0; border-radius: 0 8px 8px 0;
+  }
+  .callout-blue {
+    background: #e0f2fe; border-left: 4px solid #3b82f6; padding: 1em 1.25em;
+    margin: 1em 0; border-radius: 0 8px 8px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Nav2 Integration for Panel Interaction Demo</h1>
+<p><strong>Goal:</strong> Integrate the full Nav2 navigation stack into the ROS 2 simulation so the rover's base movement is planned and executed by Nav2, matching the real rover's architecture — without requiring a ZED camera.</p>
+<p><strong>Workspace:</strong> <code>/Users/giuliomastromartino/Documents/Polispace/LOCAL/ROS_Control/Ros_control</code></p>
+<p><strong>Reference Nav2 workspace:</strong> <code>/Users/giuliomastromartino/Documents/Polispace/Nav2</code></p>
+
+<hr>
+
+<h2>1. Current Architecture (Before)</h2>
+
+<div class="diagram">  ┌─────────────────────────────────────────────────────────────────┐
+  │  panel_interaction_demo.launch.py                                │
+  │                                                                   │
+  │  ┌──────────────┐  ┌────────────────┐  ┌──────────────────────┐  │
+  │  │ Panel System  │  │  Rover Mock    │  │  MoveIt2 + RViz     │  │
+  │  │ (controller)  │  │  (ros2_control)│  │  (arm planning)     │  │
+  │  │ panel_rsp     │  │  diff_drive    │  │  move_group         │  │
+  │  │ panel_jsb     │  │  arm_ctrl      │  │  panel_scene        │  │
+  │  │ panel_ctrl    │  │  jsb            │  │  rviz2              │  │
+  │  └──────────────┘  └────────────────┘  │  interaction_demo   │  │
+  │                       │                └──────────────────────┘  │
+  │                       │                                          │
+  │              ┌────────▼────────┐                                  │
+  │              │ world_to_odom   │  ← static identity (BROKEN!)    │
+  │              │ (static)        │                                  │
+  │              └─────────────────┘                                  │
+  └─────────────────────────────────────────────────────────────────┘</div>
+
+<table>
+<tr><th>Issue</th><th>Description</th></tr>
+<tr>
+  <td>Static <code>world→odom</code></td>
+  <td><code>world_to_odom.py</code> publishes an identity transform — base movement never changes the rover's world-frame position.</td>
+</tr>
+<tr>
+  <td>No navigation stack</td>
+  <td>No path planning, no obstacle avoidance, no waypoint following for the base.</td>
+</tr>
+<tr>
+  <td>Arm-only planning</td>
+  <td>MoveIt SRDF virtual joint is <code>type="fixed"</code> — MoveIt assumes the base is immovable.</td>
+</tr>
+<tr>
+  <td>No Nav2 in launch</td>
+  <td>No Nav2 nodes are started — the demo only uses cmd_vel (if at all).</td>
+</tr>
+</table>
+
+<h2>2. Target Architecture (After)</h2>
+
+<div class="diagram">  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  panel_interaction_demo.launch.py                                          │
+  │                                                                             │
+  │  ┌──────────────┐  ┌────────────────┐  ┌────────────────────────────────┐  │
+  │  │ Panel System  │  │  Rover Mock    │  │  MoveIt2 + RViz               │  │
+  │  │ (controller)  │  │  (ros2_control)│  │  (arm planning, planar base)  │  │
+  │  │ panel_rsp     │  │  diff_drive    │  │  move_group                   │  │
+  │  │ panel_jsb     │  │  arm_ctrl      │  │  panel_scene                  │  │
+  │  │ panel_ctrl    │  │  jsb            │  │  rviz2                        │  │
+  │  └──────────────┘  └────────────────┘  │  interaction_demo (C++)       │  │
+  │                           │             └──────────┬─────────────────────┘  │
+  │                           │                        │                        │
+  │              ┌────────────▼────────────┐            │                        │
+  │              │ dynamic world_to_odom   │◄───odom────┘                        │
+  │              │ (integrates /odom)      │                                     │
+  │              └────────────┬────────────┘                                     │
+  │                           │ publishes world→odom TF                          │
+  │                           ▼                                                   │
+  │              ┌─────────────────────────┐                                     │
+  │              │  Nav2 Stack             │                                     │
+  │              │  ┌───────────────────┐  │                                     │
+  │              │  │ planner_server    │  │  NavFn global planner               │
+  │              │  │ controller_server │  │  DWB local planner                  │
+  │              │  │ bt_navigator      │  │  NavigateToPose action server       │
+  │              │  │ behavior_server   │  │  Spin / Backup / Wait               │
+  │              │  │ smoother_server   │  │  Path smoothing                     │
+  │              │  │ velocity_smoother │  │  cmd_vel smoothing                  │
+  │              │  │ lifecycle_manager │  │  Lifecycle node management          │
+  │              │  └────────┬──────────┘  │                                     │
+  │              └───────────┼─────────────┘                                     │
+  │                          │ cmd_vel                                            │
+  │              ┌───────────▼──────────┐                                        │
+  │              │ nav2_cmd_vel_relay   │  Twist → TwistStamped + clamps         │
+  │              └───────────┬──────────┘                                        │
+  │                          │ /diff_drive_controller/cmd_vel                     │
+  │                          ▼                                                   │
+  │              ┌──────────────────────┐                                        │
+  │              │ diff_drive_controller│  Executes wheel velocities              │
+  │              └──────────────────────┘                                        │
+  └─────────────────────────────────────────────────────────────────────────────┘</div>
+
+<h2>3. TF Tree</h2>
+
+<div class="diagram">  Nav2 global frame ──┐
+                       ▼
+  map ──(static TF)──→ odom ──(diff_drive TF)──→ base_footprint ──(fixed)──→ base_link
+                       ▲                                                        │
+                       │                                              ┌─────────┼──────────┐
+                  dynamic world→odom                                  │         │          │
+                  (accumulated odometry)                        arm_mount   wheels   zed_mast
+                                                                     │         (6× cont.)
+                                                               arm_base_link
+                                                                   │
+                                                               j1_joint … ee_base_joint_y (slider_joint + 3 fingers)
+                                                                   │
+                                                                 tool0</div>
+
+<table>
+<tr><th>Frame</th><th>Published by</th><th>Description</th></tr>
+<tr><td><code>map</code></td><td><code>map_to_odom.py</code> (static TF)</td><td>Nav2 global frame. Static identity to <code>odom</code> for simulation.</td></tr>
+<tr><td><code>odom</code></td><td><code>diff_drive_controller</code> + <code>world_to_odom.py</code></td><td>Odometry frame. Diff drive publishes <code>odom→base_footprint</code>; <code>world_to_odom</code> publishes <code>world→odom</code>.</td></tr>
+<tr><td><code>base_footprint</code></td><td><code>robot_state_publisher</code></td><td>Robot's footprint on ground, follows <code>base_link</code> in x/y/yaw.</td></tr>
+<tr><td><code>base_link</code></td><td><code>robot_state_publisher</code></td><td>Chassis frame, parent of all arm/wheel/body links.</td></tr>
+<tr><td><code>world</code></td><td><code>world_to_odom.py</code></td><td>Simulation root frame. Panel and other objects are fixed in this frame.</td></tr>
+</table>
+
+<h2>4. File Inventory</h2>
+
+<h3>4.1 New Files (3)</h3>
+
+<table>
+<tr><th>#</th><th>File</th><th>Description</th></tr>
+<tr>
+  <td>N1</td>
+  <td><code>src/my_robot_bringup/config/nav2_params_mock_sim.yaml</code></td>
+  <td>Nav2 parameters adapted for simulation — no ZED, no perception layers, raw odometry, blank static map.</td>
+</tr>
+<tr>
+  <td>N2</td>
+  <td><code>src/my_robot_bringup/scripts/map_to_odom.py</code></td>
+  <td>Publishes a static <code>map → odom</code> transform (parameterized initial pose). Replaces the need for AMCL in simulation.</td>
+</tr>
+<tr>
+  <td>N3</td>
+  <td><code>src/my_robot_bringup/config/panel_workspace.yaml</code> + <code>panel_workspace.pgm</code></td>
+  <td>Blank 10×10m static map (all free space) for Nav2's global costmap. Generated by a one-shot script.</td>
+</tr>
+</table>
+
+<h3>4.2 Modified Files (7)</h3>
+
+<table>
+<tr><th>#</th><th>File</th><th>Change</th></tr>
+<tr>
+  <td>M1</td>
+  <td><code>src/rover_arm_panel_description/launch/panel_interaction_demo.launch.py</code></td>
+  <td>Add Nav2 node group + <code>nav2_cmd_vel_relay</code> + <code>map_to_odom</code>; replace static <code>world_to_odom</code></td>
+</tr>
+<tr>
+  <td>M2</td>
+  <td><code>src/my_robot_bringup/scripts/world_to_odom.py</code></td>
+  <td>Rewrite: subscribe to <code>/diff_drive_controller/odom</code> and publish dynamic <code>world→odom</code> TF</td>
+</tr>
+<tr>
+  <td>M3</td>
+  <td><code>src/rover_arm_moveit_config/src/panel_interaction_demo.cpp</code></td>
+  <td>Add Nav2 <code>NavigateToPose</code> action client for base repositioning</td>
+</tr>
+<tr>
+  <td>M4</td>
+  <td><code>src/rover_arm_moveit_config/config/rover_with_arm.srdf</code></td>
+  <td>Change virtual joint <code>type="fixed"</code> → <code>type="planar"</code></td>
+</tr>
+<tr>
+  <td>M5</td>
+  <td><code>src/my_robot_bringup/package.xml</code></td>
+  <td>Add Nav2 package dependencies</td>
+</tr>
+<tr>
+  <td>M6</td>
+  <td><code>src/rover_arm_moveit_config/CMakeLists.txt</code></td>
+  <td>Add <code>nav2_msgs</code> dependency</td>
+</tr>
+<tr>
+  <td>M7</td>
+  <td><code>src/rover_arm_moveit_config/CMakeLists.txt</code> (or <code>package.xml</code>)</td>
+  <td>Add <code>nav2_msgs</code> to <code>find_package</code> / <code>exec_depend</code></td>
+</tr>
+</table>
+
+<h2>5. Detailed Specification</h2>
+
+<h3>5.1 <span class="tag tag-create">NEW</span> <code>nav2_params_mock_sim.yaml</code></h3>
+<p>Based on <code>nav2_params_rover.yaml</code> with the following changes:</p>
+
+<table>
+<tr><th>Section</th><th>Changes from real rover params</th></tr>
+<tr>
+  <td><code>amcl:</code></td>
+  <td><strong>REMOVED entirely.</strong> Not needed in simulation — <code>map_to_odom.py</code> provides a static <code>map→odom</code> TF.</td>
+</tr>
+<tr>
+  <td><code>map_server:</code></td>
+  <td><strong>REMOVED.</strong> The static map is loaded directly by the costmap's <code>static_layer</code> via the YAML path param.</td>
+</tr>
+<tr>
+  <td><code>map_saver:</code></td>
+  <td><strong>REMOVED.</strong> No need to save maps in simulation.</td>
+</tr>
+<tr>
+  <td><code>bt_navigator.odom_topic</code></td>
+  <td>Changed from <code>/odometry/filtered</code> → <code>/diff_drive_controller/odom</code></td>
+</tr>
+<tr>
+  <td><code>controller_server.odom_topic</code></td>
+  <td>Changed from <code>/odometry/filtered</code> → <code>/diff_drive_controller/odom</code></td>
+</tr>
+<tr>
+  <td><code>velocity_smoother.odom_topic</code></td>
+  <td>Changed from <code>/odometry/filtered</code> → <code>/diff_drive_controller/odom</code></td>
+</tr>
+<tr>
+  <td><code>local_costmap.plugins</code></td>
+  <td>Changed from <code>[voxel_layer, inflation_layer]</code> → <code>[inflation_layer]</code></td>
+</tr>
+<tr>
+  <td><code>local_costmap.voxel_layer</code></td>
+  <td><strong>REMOVED.</strong> No ZED point cloud in simulation.</td>
+</tr>
+<tr>
+  <td><code>global_costmap.plugins</code></td>
+  <td>Changed from <code>[static_layer, obstacle_layer, inflation_layer]</code> → <code>[static_layer, inflation_layer]</code></td>
+</tr>
+<tr>
+  <td><code>global_costmap.obstacle_layer</code></td>
+  <td><strong>REMOVED.</strong> No ZED scan in simulation.</td>
+</tr>
+<tr>
+  <td><code>global_costmap.static_layer.map_subscribe_transient_local</code></td>
+  <td>Keep <code>true</code>. Points to the blank map YAML.</td>
+</tr>
+</table>
+
+<P>All velocity limits, costmap dimensions, footprint, and planner configs remain the same as the real rover params for fidelity.</p>
+
+<h3>5.2 <span class="tag tag-create">NEW</span> <code>map_to_odom.py</code></h3>
+
+<pre><span class="kw">#!/usr/bin/env python3</span>
+<span class="cm"># map_to_odom.py</span>
+<span class="cm"># Publishes a static map → odom transform for simulation.</span>
+<span class="cm"># In the real system this is published by AMCL.</span>
+
+<span class="kw">import</span> rclpy
+<span class="kw">from</span> rclpy.node <span class="kw">import</span> Node
+<span class="kw">from</span> geometry_msgs.msg <span class="kw">import</span> TransformStamped
+<span class="kw">from</span> tf2_ros <span class="kw">import</span> StaticTransformBroadcaster
+
+<span class="kw">class</span> <span class="tp">MapToOdomPublisher</span>(Node):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        <span class="kw">super</span>().__init__(<span class="str">"map_to_odom"</span>)
+        self.declare_parameter(<span class="str">"x"</span>, <span class="num">0.0</span>)
+        self.declare_parameter(<span class="str">"y"</span>, <span class="num">0.0</span>)
+        self.declare_parameter(<span class="str">"yaw"</span>, <span class="num">0.0</span>)
+
+        x = self.get_parameter(<span class="str">"x"</span>).value
+        y = self.get_parameter(<span class="str">"y"</span>).value
+        yaw = self.get_parameter(<span class="str">"yaw"</span>).value
+
+        <span class="kw">from</span> tf_transformations <span class="kw">import</span> quaternion_from_euler
+        q = quaternion_from_euler(<span class="num">0</span>, <span class="num">0</span>, yaw)
+
+        t = TransformStamped()
+        t.header.frame_id = <span class="str">"map"</span>
+        t.child_frame_id = <span class="str">"odom"</span>
+        t.transform.translation.x = x
+        t.transform.translation.y = y
+        t.transform.translation.z = <span class="num">0.0</span>
+        t.transform.rotation.x = q[<span class="num">0</span>]
+        t.transform.rotation.y = q[<span class="num">1</span>]
+        t.transform.rotation.z = q[<span class="num">2</span>]
+        t.transform.rotation.w = q[<span class="num">3</span>]
+
+        self._broadcaster = StaticTransformBroadcaster(self)
+        self._broadcaster.sendTransform(t)
+        self.get_logger().info(<span class="str">f"Published static map→odom: ({x}, {y}, {yaw})"</span>)
+
+<span class="kw">def</span> <span class="fn">main</span>():
+    rclpy.init()
+    node = MapToOdomPublisher()
+    rclpy.spin(node)
+    rclpy.shutdown()</pre>
+
+<h3>5.3 <span class="tag tag-modify">MODIFY</span> <code>world_to_odom.py</code></h3>
+<p>Complete rewrite. Subscribe to <code>/diff_drive_controller/odom</code> and accumulate the pose into a <code>world→odom</code> transform.</p>
+
+<pre><span class="kw">import</span> rclpy
+<span class="kw">from</span> rclpy.node <span class="kw">import</span> Node
+<span class="kw">from</span> nav_msgs.msg <span class="kw">import</span> Odometry
+<span class="kw">from</span> geometry_msgs.msg <span class="kw">import</span> TransformStamped
+<span class="kw">from</span> tf2_ros <span class="kw">import</span> TransformBroadcaster
+
+<span class="kw">class</span> <span class="tp">WorldToOdom</span>(Node):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        <span class="kw">super</span>().__init__(<span class="str">"world_to_odom"</span>)
+        self._tf_broadcaster = TransformBroadcaster(self)
+        self._accumulated_x = <span class="num">0.0</span>
+        self._accumulated_y = <span class="num">0.0</span>
+        self._accumulated_yaw = <span class="num">0.0</span>
+        self._last_odom = <span class="kw">None</span>
+
+        self._sub = self.create_subscription(
+            Odometry, <span class="str">"/diff_drive_controller/odom"</span>,
+            self._odom_callback, <span class="num">10</span>
+        )
+        self._timer = self.create_timer(<span class="num">0.05</span>, self._publish_tf)
+
+    <span class="kw">def</span> <span class="fn">_odom_callback</span>(self, msg: Odometry):
+        <span class="kw">if</span> self._last_odom <span class="kw">is not None</span>:
+            dx = msg.pose.pose.position.x - self._last_odom.pose.pose.position.x
+            dy = msg.pose.pose.position.y - self._last_odom.pose.pose.position.y
+            <span class="cm"># Accumulate relative to starting pose</span>
+            self._accumulated_x += dx
+            self._accumulated_y += dy
+            <span class="cm"># Orientation from odom quaternion</span>
+            <span class="kw">from</span> tf_transformations <span class="kw">import</span> euler_from_quaternion
+            _, _, yaw = euler_from_quaternion([
+                msg.pose.pose.orientation.x,
+                msg.pose.pose.orientation.y,
+                msg.pose.pose.orientation.z,
+                msg.pose.pose.orientation.w,
+            ])
+            self._accumulated_yaw = yaw
+        self._last_odom = msg
+
+    <span class="kw">def</span> <span class="fn">_publish_tf</span>(self):
+        <span class="kw">if</span> self._last_odom <span class="kw">is None</span>:
+            <span class="kw">return</span>
+        <span class="kw">from</span> tf_transformations <span class="kw">import</span> quaternion_from_euler
+        q = quaternion_from_euler(<span class="num">0</span>, <span class="num">0</span>, self._accumulated_yaw)
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = <span class="str">"world"</span>
+        t.child_frame_id = <span class="str">"odom"</span>
+        t.transform.translation.x = self._accumulated_x
+        t.transform.translation.y = self._accumulated_y
+        t.transform.translation.z = <span class="num">0.0</span>
+        t.transform.rotation.x = q[<span class="num">0</span>]
+        t.transform.rotation.y = q[<span class="num">1</span>]
+        t.transform.rotation.z = q[<span class="num">2</span>]
+        t.transform.rotation.w = q[<span class="num">3</span>]
+        self._tf_broadcaster.sendTransform(t)</pre>
+
+<h3>5.4 <span class="tag tag-modify">MODIFY</span> <code>panel_interaction_demo.launch.py</code></h3>
+
+<p><strong>Add to imports:</strong></p>
+<pre><span class="kw">from</span> launch.actions <span class="kw">import</span> TimerAction
+<span class="kw">from</span> launch.conditions <span class="kw">import</span> IfCondition</pre>
+
+<p><strong>Nav2 node group:</strong> (inserted after the existing <code>world_to_odom</code> / MoveIt group)</p>
+
+<pre><span class="cm"># ── Nav2 parameters ──────────────────────────</span>
+nav2_params = PathJoinSubstitution([
+    FindPackageShare(<span class="str">"my_robot_bringup"</span>),
+    <span class="str">"config"</span>, <span class="str">"nav2_params_mock_sim.yaml"</span>,
+])
+
+<span class="cm"># ── Static map → odom ────────────────────────</span>
+map_to_odom_node = Node(
+    package=<span class="str">"my_robot_bringup"</span>,
+    executable=<span class="str">"map_to_odom.py"</span>,
+    name=<span class="str">"map_to_odom"</span>,
+    parameters=[{<span class="str">"x"</span>: <span class="num">0.0</span>, <span class="str">"y"</span>: <span class="num">0.0</span>, <span class="str">"yaw"</span>: <span class="num">0.0</span>}],
+    output=<span class="str">"screen"</span>,
+)
+
+<span class="cm"># ── Nav2 cmd_vel relay ───────────────────────</span>
+cmd_vel_relay_node = Node(
+    package=<span class="str">"my_robot_bringup"</span>,
+    executable=<span class="str">"nav2_cmd_vel_relay.py"</span>,
+    name=<span class="str">"nav2_cmd_vel_relay"</span>,
+    parameters=[{
+        <span class="str">"input_topic"</span>: <span class="str">"/cmd_vel"</span>,
+        <span class="str">"output_topic"</span>: <span class="str">"/diff_drive_controller/cmd_vel"</span>,
+        <span class="str">"output_stamped"</span>: <span class="kw">True</span>,
+        <span class="str">"frame_id"</span>: <span class="str">"base_footprint"</span>,
+        <span class="str">"max_linear_x"</span>: <span class="num">0.25</span>,
+        <span class="str">"max_angular_z"</span>: <span class="num">0.50</span>,
+        <span class="str">"command_timeout"</span>: <span class="num">0.5</span>,
+        <span class="str">"publish_zero_on_timeout"</span>: <span class="kw">True</span>,
+    }],
+    output=<span class="str">"screen"</span>,
+)
+
+<span class="cm"># ── Nav2 core nodes (timed, matches real rover order) ──</span>
+nav2_nodes = []
+nav2_services = [
+    <span class="str">"controller_server"</span>,
+    <span class="str">"planner_server"</span>,
+    <span class="str">"bt_navigator"</span>,
+    <span class="str">"behavior_server"</span>,
+    <span class="str">"smoother_server"</span>,
+    <span class="str">"waypoint_follower"</span>,
+    <span class="str">"velocity_smoother"</span>,
+]
+
+delays = [<span class="num">4.0</span>, <span class="num">6.0</span>, <span class="num">8.0</span>, <span class="num">10.0</span>, <span class="num">12.0</span>, <span class="num">14.0</span>, <span class="num">16.0</span>]
+<span class="kw">for</span> pkg, exec_name, delay <span class="kw">in</span> [
+    (<span class="str">"nav2_controller"</span>,     <span class="str">"controller_server"</span>,    <span class="num">4.0</span>),
+    (<span class="str">"nav2_planner"</span>,        <span class="str">"planner_server"</span>,        <span class="num">6.0</span>),
+    (<span class="str">"nav2_bt_navigator"</span>,   <span class="str">"bt_navigator"</span>,          <span class="num">8.0</span>),
+    (<span class="str">"nav2_behaviors"</span>,      <span class="str">"behavior_server"</span>,        <span class="num">10.0</span>),
+    (<span class="str">"nav2_smoother"</span>,       <span class="str">"smoother_server"</span>,        <span class="num">12.0</span>),
+    (<span class="str">"nav2_waypoint_follower"</span>, <span class="str">"waypoint_follower"</span>,    <span class="num">14.0</span>),
+    (<span class="str">"nav2_velocity_smoother"</span>, <span class="str">"velocity_smoother"</span>,    <span class="num">16.0</span>),
+]:
+    nav2_nodes.append(TimerAction(
+        period=delay,
+        actions=[Node(
+            package=pkg, executable=exec_name, name=exec_name,
+            output=<span class="str">"screen"</span>,
+            parameters=[nav2_params],
+            remappings=[
+                (<span class="str">"cmd_vel"</span>, <span class="str">"cmd_vel_nav"</span>),
+            ] <span class="kw">if</span> exec_name == <span class="str">"controller_server"</span>
+            <span class="kw">else</span> [
+                (<span class="str">"cmd_vel"</span>, <span class="str">"cmd_vel_nav"</span>),
+                (<span class="str">"cmd_vel_smoothed"</span>, <span class="str">"cmd_vel"</span>),
+            ] <span class="kw">if</span> exec_name == <span class="str">"velocity_smoother"</span>
+            <span class="kw">else</span> [],
+        )],
+    ))
+
+lifecycle_manager_node = TimerAction(
+    period=<span class="num">18.0</span>,
+    actions=[Node(
+        package=<span class="str">"nav2_lifecycle_manager"</span>,
+        executable=<span class="str">"lifecycle_manager"</span>,
+        name=<span class="str">"lifecycle_manager_navigation"</span>,
+        output=<span class="str">"screen"</span>,
+        parameters=[{
+            <span class="str">"use_sim_time"</span>: <span class="kw">False</span>,
+            <span class="str">"autostart"</span>: <span class="kw">True</span>,
+            <span class="str">"node_names"</span>: nav2_services,
+        }],
+    )],
+)</pre>
+
+<p><strong>Replace in <code>nodes = [...]</code>:</strong></p>
+<ul>
+  <li>Remove old <code>world_to_odom</code> entry</li>
+  <li>Add <code>map_to_odom_node</code></li>
+  <li>Add <code>cmd_vel_relay_node</code></li>
+  <li>Add all <code>nav2_nodes</code></li>
+  <li>Add <code>lifecycle_manager_node</code></li>
+</ul>
+
+<h3>5.5 <span class="tag tag-modify">MODIFY</span> <code>panel_interaction_demo.cpp</code></h3>
+
+<p><strong>Add to includes:</strong></p>
+<pre><span class="kw">#include</span> <span class="str">&lt;nav2_msgs/action/navigate_to_pose.hpp&gt;</span>
+<span class="kw">using</span> NavigateToPoseAction = nav2_msgs::action::NavigateToPose;</pre>
+
+<p><strong>Add Nav2 action client creation:</strong></p>
+<pre>RCLCPP_INFO(logger, <span class="str">"Creating action client for /navigate_to_pose..."</span>);
+<span class="kw">auto</span> nav_client = rclcpp_action::create_client&lt;NavigateToPoseAction&gt;(
+    node, <span class="str">"/navigate_to_pose"</span>);</pre>
+
+<p><strong>Wait for Nav2 server (with timeout):</strong></p>
+<pre>RCLCPP_INFO(logger, <span class="str">"Waiting for Nav2 navigate_to_pose action server..."</span>);
+{
+    <span class="kw">auto</span> timeout = std::chrono::steady_clock::now() + std::chrono::seconds(<span class="num">60</span>);
+    <span class="kw">while</span> (rclcpp::ok() &amp;&amp; std::chrono::steady_clock::now() &lt; timeout) {
+        <span class="kw">if</span> (nav_client-&gt;action_server_is_ready()) <span class="kw">break</span>;
+        executor.spin_some();
+        std::this_thread::sleep_for(std::chrono::milliseconds(<span class="num">100</span>));
+    }
+    <span class="kw">if</span> (!nav_client-&gt;action_server_is_ready()) {
+        RCLCPP_ERROR(logger, <span class="str">"Nav2 action server not available. Base navigation disabled."</span>);
+    }
+}</pre>
+
+<p><strong>Add helper function:</strong></p>
+<pre><span class="kw">bool</span> <span class="fn">driveToPose</span>(
+    <span class="kw">const</span> std::string &amp; frame_id,
+    <span class="kw">double</span> x, <span class="kw">double</span> y, <span class="kw">double</span> yaw,
+    rclcpp_action::Client&lt;NavigateToPoseAction&gt;::SharedPtr &amp; client,
+    rclcpp::Executor &amp; executor,
+    rclcpp::Logger &amp; logger)
+{
+    <span class="kw">if</span> (!client-&gt;action_server_is_ready()) {
+        RCLCPP_WARN(logger, <span class="str">"Nav2 action server not ready, skipping drive."</span>);
+        <span class="kw">return</span> <span class="kw">false</span>;
+    }
+
+    <span class="kw">auto</span> goal = NavigateToPoseAction::Goal();
+    goal.pose.header.frame_id = frame_id;
+    goal.pose.pose.position.x = x;
+    goal.pose.pose.position.y = y;
+    goal.pose.pose.position.z = <span class="num">0.0</span>;
+
+    <span class="kw">auto</span> q = tf2::Quaternion();
+    q.setRPY(<span class="num">0</span>, <span class="num">0</span>, yaw);
+    goal.pose.pose.orientation = tf2::toMsg(q);
+
+    RCLCPP_INFO(logger, <span class="str">"Driving base to (%.2f, %.2f, %.2f)..."</span>, x, y, yaw);
+
+    <span class="kw">auto</span> send_future = client-&gt;async_send_goal(goal);
+    <span class="kw">if</span> (executor.spin_until_future_complete(send_future, std::chrono::seconds(<span class="num">5</span>))
+        != rclcpp::FutureReturnCode::SUCCESS) {
+        RCLCPP_WARN(logger, <span class="str">"Failed to send Nav2 goal."</span>);
+        <span class="kw">return</span> <span class="kw">false</span>;
+    }
+
+    <span class="kw">auto</span> goal_handle = send_future.get();
+    <span class="kw">if</span> (!goal_handle) {
+        RCLCPP_WARN(logger, <span class="str">"Nav2 goal was rejected."</span>);
+        <span class="kw">return</span> <span class="kw">false</span>;
+    }
+
+    <span class="kw">auto</span> result_future = client-&gt;async_get_result(goal_handle);
+    <span class="kw">if</span> (executor.spin_until_future_complete(result_future, std::chrono::seconds(<span class="num">60</span>))
+        != rclcpp::FutureReturnCode::SUCCESS) {
+        RCLCPP_WARN(logger, <span class="str">"Nav2 navigation timed out."</span>);
+        <span class="kw">return</span> <span class="kw">false</span>;
+    }
+
+    <span class="kw">auto</span> result = result_future.get();
+    <span class="kw">if</span> (result.code != rclcpp_action::ResultCode::SUCCEEDED) {
+        RCLCPP_WARN(logger, <span class="str">"Nav2 navigation failed."</span>);
+        <span class="kw">return</span> <span class="kw">false</span>;
+    }
+
+    RCLCPP_INFO(logger, <span class="str">"Base repositioning complete."</span>);
+    <span class="kw">return</span> <span class="kw">true</span>;
+}</pre>
+
+<p><strong>Insert base movement before arm sequence:</strong></p>
+<pre><span class="cm">// ── Drive base to working position near panel ──</span>
+RCLCPP_INFO(logger, <span class="str">"--- Base navigation phase ---"</span>);
+driveToPose(<span class="str">"map"</span>, <span class="num">0.8</span>, <span class="num">0.0</span>, <span class="num">0.0</span>, nav_client, executor, logger);
+std::this_thread::sleep_for(std::chrono::milliseconds(<span class="num">500</span>));</pre>
+
+<h3>5.6 <span class="tag tag-modify">MODIFY</span> <code>rover_with_arm.srdf</code></h3>
+
+<p>Change the virtual joint type from <code>fixed</code> to <code>planar</code>:</p>
+
+<pre><span class="cm">&lt;!-- BEFORE --&gt;</span>
+&lt;virtual_joint name=<span class="str">"world_to_base_footprint"</span> type=<span class="str">"fixed"</span>
+    parent_frame=<span class="str">"world"</span> child_link=<span class="str">"base_footprint"</span>/&gt;
+
+<span class="cm">&lt;!-- AFTER --&gt;</span>
+&lt;virtual_joint name=<span class="str">"world_to_base_footprint"</span> type=<span class="str">"planar"</span>
+    parent_frame=<span class="str">"world"</span> child_link=<span class="str">"base_footprint"</span>/&gt;</pre>
+
+<h3>5.7 <span class="tag tag-modify">MODIFY</span> <code>my_robot_bringup/package.xml</code></h3>
+<p>Add dependencies (if not already present):</p>
+<pre>&lt;exec_depend&gt;nav2_controller&lt;/exec_depend&gt;
+&lt;exec_depend&gt;nav2_planner&lt;/exec_depend&gt;
+&lt;exec_depend&gt;nav2_bt_navigator&lt;/exec_depend&gt;
+&lt;exec_depend&gt;nav2_behaviors&lt;/exec_depend&gt;
+&lt;exec_depend&gt;nav2_smoother&lt;/exec_depend&gt;
+&lt;exec_depend&gt;nav2_velocity_smoother&lt;/exec_depend&gt;
+&lt;exec_depend&gt;nav2_lifecycle_manager&lt;/exec_depend&gt;
+&lt;exec_depend&gt;nav2_navfn_planner&lt;/exec_depend&gt;
+&lt;exec_depend&gt;dwb_core&lt;/exec_depend&gt;</pre>
+
+<h3>5.8 <span class="tag tag-modify">MODIFY</span> <code>rover_arm_moveit_config/CMakeLists.txt</code></h3>
+<p>Add <code>nav2_msgs</code> to the build:</p>
+<pre>find_package(nav2_msgs REQUIRED)
+
+ament_target_dependencies(panel_interaction_demo
+  rclcpp
+  rclcpp_action
+  moveit_ros_planning_interface
+  control_msgs
+  nav2_msgs
+)</pre>
+
+<h2>6. Nav2 Navigation Flow</h2>
+
+<div class="diagram">  Demo C++ Node                        Nav2 Stack                   diff_drive_controller
+       │                                   │                                │
+       │  NavigateToPose(goal)             │                                │
+       │──────────────────────────────────►│                                │
+       │                                   │  plan path (NavFn)             │
+       │                                   │  follow path (DWB)            │
+       │                                   │  cmd_vel (Twist)               │
+       │                                   │──── cmd_vel_relay ────────────►│
+       │                                   │                                │  execute
+       │                                   │                                │  wheel velocities
+       │                                   │  odom (pose update)            │
+       │                                   │◄───────────────────────────────│
+       │  NavigationResult                 │                                │
+       │◄──────────────────────────────────│                                │
+       │                                   │                                │
+       │  ┌─ MoveIt arm plan ─────────┐   │                                │
+       │  │ setPositionTarget(x,y,z)  │   │                                │
+       │  │ plan()                    │   │                                │
+       │  │ FollowJointTrajectory     │   │                                │
+       │  │───────────────────────────────────────────────────────────►    │
+       │  │                           │   │                                │
+       │  └───────────────────────────┘   │                                │</div>
+
+<h2>7. Start-Up Sequence Timeline</h2>
+
+<table>
+<tr><th>Time (s)</th><th>Event</th></tr>
+<tr><td>t=0</td><td>Launch file starts: all static nodes (RSP, ros2_control, panel nodes, Rviz, MoveGroup)</td></tr>
+<tr><td>t=0</td><td><code>map_to_odom.py</code> publishes static <code>map→odom</code> TF</td></tr>
+<tr><td>t=1-3</td><td>Controller spawners: <code>joint_state_broadcaster</code>, <code>diff_drive_controller</code>, <code>arm_controller</code>, <code>panel_controller</code></td></tr>
+<tr><td>t=4</td><td><code>controller_server</code> starts (Nav2 local planner DWB)</td></tr>
+<tr><td>t=6</td><td><code>planner_server</code> starts (Nav2 global planner NavFn)</td></tr>
+<tr><td>t=8</td><td><code>bt_navigator</code> starts (behavior tree navigator)</td></tr>
+<tr><td>t=10</td><td><code>behavior_server</code> starts (recovery behaviors)</td></tr>
+<tr><td>t=12</td><td><code>smoother_server</code> starts (path smoothing)</td></tr>
+<tr><td>t=14</td><td><code>waypoint_follower</code> starts</td></tr>
+<tr><td>t=16</td><td><code>velocity_smoother</code> starts</td></tr>
+<tr><td>t=18</td><td><code>lifecycle_manager_navigation</code> starts → activates all Nav2 nodes</td></tr>
+<tr><td>t=19+</td><td><code>panel_interaction_demo</code> starts (triggered after arm_controller spawns)</td></tr>
+<tr><td>t=22+</td><td>Nav2 <code>NavigateToPose</code> action server becomes available; demo begins base navigation</td></tr>
+</table>
+
+<h2>8. Demo Execution Flow</h2>
+
+<ol>
+  <li><strong>Start-up:</strong> All nodes launch, controllers spawn, Nav2 lifecycle nodes activate.</li>
+  <li><strong>Arm pose initialize:</strong> Arm moves to safe upright position <code>[0, 0.2, 0, 0]</code> (existing).</li>
+  <li><strong>[NEW] Base navigate to panel:</strong> Demo sends <code>NavigateToPose</code> goal in <code>map</code> frame to drive rover ~0.8m in front of panel. Waits for success.</li>
+  <li><strong>For each of 9 targets</strong> (existing loop):
+    <ol style="list-style-type: lower-alpha;">
+      <li>[FUTURE] Optionally recompute base pose from IK feasibility and drive via Nav2.</li>
+      <li>Plan arm trajectory via MoveIt (Cartesian first, then joint-space fallback).</li>
+      <li>Execute via <code>FollowJointTrajectory</code> on <code>/arm_controller</code>.</li>
+      <li>Wait 800ms between targets.</li>
+    </ol>
+  </li>
+  <li><strong>Shutdown:</strong> Demo exits, launch file shuts down all nodes.</li>
+</ol>
+
+<h2>9. Dependencies to Install</h2>
+
+<pre>sudo apt-get install ros-humble-nav2-controller \
+  ros-humble-nav2-planner \
+  ros-humble-nav2-bt-navigator \
+  ros-humble-nav2-behaviors \
+  ros-humble-nav2-smoother \
+  ros-humble-nav2-velocity-smoother \
+  ros-humble-nav2-lifecycle-manager \
+  ros-humble-nav2-msgs \
+  ros-humble-nav2-navfn-planner \
+  ros-humble-nav2-costmap-2d \
+  ros-humble-dwb-core \
+  ros-humble-dwb-critics \
+  ros-humble-dwb-plugins</pre>
+
+<p class="callout"><strong>Note:</strong> If using a different ROS 2 distro, replace <code>humble</code> with <code>iron</code>, <code>jazzy</code>, etc.</p>
+
+<h2>10. Edge Cases &amp; Risks</h2>
+
+<table>
+<tr><th>Risk</th><th>Mitigation</th></tr>
+<tr>
+  <td>Nav2 cannot plan without obstacle data</td>
+  <td>Blank map + <code>allow_unknown: true</code> ensures planner always finds a path. Only inflation layer keeps robot away from its own footprint.</td>
+</tr>
+<tr>
+  <td><code>map→odom</code> static TF causes drift divergence</td>
+  <td>Static TF is acceptable for short simulation runs. For longer runs, replace with an intermittent reset or simple EKF-less odom publisher.</td>
+</tr>
+<tr>
+  <td>Wheel odometry drift in mock hardware</td>
+  <td>The mock hardware's <code>calculate_dynamics: true</code> provides idealized odometry — minimal drift.</td>
+</tr>
+<tr>
+  <td>Nav2 ignores arm-mounted panel collision object</td>
+  <td>Nav2's costmap only knows the rover footprint, not the arm's extended geometry. For the demo, the arm is stowed during base movement.</td>
+</tr>
+<tr>
+  <td>Arm interacts with Nav2 costmap</td>
+  <td>The arm joints are not part of Nav2's footprint. If the arm extends into obstacles during base movement, it can collide. <strong>Mitigation:</strong> Arm is stowed (upright pose) during base movement.</td>
+</tr>
+<tr>
+  <td>Timer-based Nav2 launch ordering</td>
+  <td>The 18s total startup delay is conservative. Nav2 nodes may be ready earlier. The demo already waits for the arm_controller and can wait for Nav2 separately.</td>
+</tr>
+<tr>
+  <td>MacOS <code>ROS_LOCALHOST_ONLY=1</code> interferes with Nav2</td>
+  <td>Nav2 runs entirely locally — all topics/actions are localhost. No issue.</td>
+</tr>
+</table>
+
+<h2>11. Verification</h2>
+
+<ol>
+  <li><strong>Build:</strong> <code>colcon build --symlink-install</code> succeeds with no errors.</li>
+  <li><strong>Launch:</strong> <code>ros2 launch rover_arm_panel_description panel_interaction_demo.launch.py</code> starts all nodes without crashes.</li>
+  <li><strong>TF tree:</strong> <code>ros2 run tf2_tools view_frames.py</code> shows <code>map → odom → base_footprint → base_link → ...</code></li>
+  <li><strong>Nav2 action:</strong> <code>ros2 action list</code> shows <code>/navigate_to_pose</code>.</li>
+  <li><strong>Base navigation:</strong> Demo drives rover forward ~0.8m via Nav2. Odometry TF updates <code>odom→base_footprint</code>; <code>world→odom</code> accumulates position.</li>
+  <li><strong>Arm sequence:</strong> After base navigation, the 9 panel targets are approached in sequence (existing behavior).</li>
+  <li><strong>Shutdown:</strong> Demo exits cleanly after all targets; launch file shuts down.</li>
+</ol>
+
+<h2>12. Future Enhancements (Out of Scope for v1)</h2>
+
+<ul>
+  <li><strong>Coordinated base+arm planning:</strong> Add wheel joints to MoveIt SRDF so MoveIt can plan <code>base_x, base_y, base_yaw + arm_joints</code> together.</li>
+  <li><strong>Dynamic base repositioning per target:</strong> Compute IK feasibility for each target and reposition base automatically if the arm cannot reach.</li>
+  <li><strong>Perception in simulation:</strong> Add a simulated laser scanner (e.g., <code>gazebo_ros2_control</code> or <code>ignition</code>) for Nav2 costmap obstacle detection.</li>
+  <li><strong>EKF fusion:</strong> Add <code>robot_localization</code> EKF in simulation, fusing wheel odometry + optional IMU.</li>
+  <li><strong>SLAM:</strong> Run <code>slam_toolbox</code> in simulation to build a map of the panel environment.</li>
+</ul>
+
+<hr>
+
+<p style="color: #6b7280; font-size: .85em; text-align: center;">Plan generated for ERC 2026 Maintenance Task Panel — Nav2 Integration v1.0</p>
+
+</body>
+</html>

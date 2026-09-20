@@ -1,0 +1,23 @@
+/**:
+  ros__parameters:
+    controller_names:
+      - arm_controller
+      - gripper_controller
+
+    arm_controller:
+      type: FollowJointTrajectory
+      action_ns: follow_joint_trajectory
+      default: true
+      joints:
+        - j1_joint
+        - j2_joint
+        - j3_joint
+        - ee_base_joint_x
+        - ee_base_joint_y
+
+    gripper_controller:
+      type: FollowJointTrajectory
+      action_ns: follow_joint_trajectory
+      default: false
+      joints:
+        - slider_joint

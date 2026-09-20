@@ -1,0 +1,65 @@
+# ROS2 workspace build artifacts
+build/
+install/
+log/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+*.egg-info/
+dist/
+*.egg
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Compiled files
+*.o
+*.a
+*.lib
+*.dll
+*.exe
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# ROS2 specific
+.ros/
+.catkin_workspace
+
+# Large files
+*.dae
+src/build/
+\[ERC 2026\] RULES Rev.3.pdf
+BagTesting.md
+Development_env.md
+/src/build
+src/build/dd0/.cmake/api/v1/query/client-colcon-cmake/codemodel-v2
+ZedBagTesting.md
+panel_page-44.png
+/.kilo
+src/gz_ros2_control/
+__cmake_systeminformation/CMakeLists.txt
+__cmake_systeminformation/CMakeLists.txt
+.cache/
+Ros2_Arm/

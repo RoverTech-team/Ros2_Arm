@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan — Closed-Loop Physical Knob Interaction in Gazebo</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1d21; --muted: #5b6470; --accent: #0b6bcb;
+    --accent-bg: #e8f1fb; --good: #177245; --good-bg: #e6f4ec;
+    --warn: #9a5b00; --warn-bg: #fdf3e3; --bad: #b3261e; --bad-bg: #fdecea;
+    --border: #d8dde3; --code-bg: #f4f6f8; --block-bg: #fafbfc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --fg: #e6e9ee; --muted: #9aa4b0; --accent: #6cb2f7;
+      --accent-bg: #14283f; --good: #58c98b; --good-bg: #12281c;
+      --warn: #e0a04c; --warn-bg: #2e2413; --bad: #f0786e; --bad-bg: #341614;
+      --border: #2a3038; --code-bg: #161a20; --block-bg: #13161b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 24px 80px; }
+  h1 { font-size: 26px; margin: 8px 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 10px; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+  h3 { font-size: 16px; margin: 24px 0 8px; }
+  p { margin: 8px 0; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .badge { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .b-good { background: var(--good-bg); color: var(--good); }
+  .b-warn { background: var(--warn-bg); color: var(--warn); }
+  .b-bad  { background: var(--bad-bg); color: var(--bad); }
+  .b-info { background: var(--accent-bg); color: var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13.5px; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--block-bg); font-weight: 600; }
+  code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px;
+         padding: 1px 5px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+        padding: 14px 16px; overflow-x: auto; font-family: "SF Mono", Menlo, Consolas, monospace;
+        font-size: 12.5px; line-height: 1.5; }
+  pre.diff b { color: var(--good); font-weight: 600; }
+  pre.diff i { color: var(--bad); font-style: normal; font-weight: 600; }
+  .card { background: var(--block-bg); border: 1px solid var(--border); border-radius: 10px;
+          padding: 14px 18px; margin: 14px 0; }
+  .blocker { border-left: 4px solid var(--warn); }
+  .resolved { border-left: 4px solid var(--good); }
+  .kv { font-size: 13px; color: var(--muted); }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 3px 0; }
+  footer { margin-top: 60px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; }
+  .flow { font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Closed-Loop Physical Knob Interaction in Gazebo</h1>
+<div class="meta">
+  Repo: <code>Ros_control</code> · Demo: <code>panel_interaction_demo.cpp</code> + <code>panel.urdf.xacro</code> ·
+  Status: <span class="badge b-warn">PLANNED — NOT IMPLEMENTED</span> ·
+  v1.0 · Aug 02 2026
+</div>
+
+<h2 id="toc">Contents</h2>
+<ul class="toc">
+  <li><a href="#objective">1. Objective</a></li>
+  <li><a href="#current">2. What the demo does today (and why it is "arbitrary, no feedback")</a></li>
+  <li><a href="#decisions">3. Design decisions (confirmed with the user)</a></li>
+  <li><a href="#physics">4. Physics &amp; geometry analysis (what actually works on a knob)</a></li>
+  <li><a href="#architecture">5. Proposed architecture</a></li>
+  <li><a href="#blockers">6. Blocker analysis (9 blockers, with verification experiments)</a></li>
+  <li><a href="#diffs">7. Proposed diffs (most relevant elements)</a></li>
+  <li><a href="#steps">8. Implementation steps &amp; validation</a></li>
+  <li><a href="#files">9. Files touched</a></li>
+</ul>
+
+<h2 id="objective">1. Objective</h2>
+<p>Rework the demo so the arm <b>actually touches and actuates the panel's knobs in Gazebo with a closed feedback loop</b>:</p>
+<ul>
+  <li>Every interaction is <b>verified by physical state change</b> of the knob (from <code>/panel/joint_states</code>), not by "the plan succeeded".</li>
+  <li>The arm's motion is <b>verified</b> (tracking check against the last commanded waypoint).</li>
+  <li>Contact is <b>physically real</b>: the j5 fingertip pushes levers over their detent, drags rotary knobs, presses fixed elements.</li>
+  <li>Scope: <b>17 elements</b> — 12 knobs actuated (5 levers, 2 power, 5 rotary) + 5 fixed elements poked (electromagnet, 2 sockets, indicator, aruco tag).</li>
+</ul>
+
+<h2 id="current">2. What the demo does today (and why it is "arbitrary, no feedback")</h2>
+<p><code>src/rover_arm_moveit_config/src/panel_interaction_demo.cpp</code> (261 lines) has the following flaws — the motivation for this plan:</p>
+<table>
+  <tr><th>#</th><th>Flaw (file:line)</th><th>Consequence</th></tr>
+  <tr><td>1</td><td><code>setPositionTarget(x, y, z, "tool0")</code> (line 186) — <b>position-only goal, orientation unconstrained</b></td><td>The wrist points wherever KDL pleases; there is no notion of "push direction". Motion looks arbitrary.</td></tr>
+  <tr><td>2</td><td>Success = <code>plan() == SUCCESS</code> + JTC result <code>SUCCEEDED</code> (lines 191–242)</td><td>Nothing verifies the arm actually arrived or touched anything.</td></tr>
+  <tr><td>3</td><td>Zero subscriptions to panel feedback (<code>/panel/joint_states</code>, switch topics)</td><td>The demo cannot know whether a knob moved.</td></tr>
+  <tr><td>4</td><td><code>tool0</code> floats <b>40 mm beyond</b> the physical j5 tip (<code>rover_arm.urdf.xacro:195–199</code>); targets aim at the knob pivot</td><td>The physical tip ends ~40 mm short of every knob. No contact.</td></tr>
+  <tr><td>5</td><td>Hardcoded world coords assume panel at z=0 (lines 29–40), but launch spawns at <b>z=0.02</b> (<code>panel_interaction_demo.launch.py:294</code>)</td><td>All targets 20 mm too low.</td></tr>
+  <tr><td>6</td><td>No approach offsets / no push segment — OMPL plans straight to the pivot point</td><td>The arm stops at the surface (when it gets there), never presses.</td></tr>
+  <tr><td>7</td><td>Only 9 targets; 8 knobs (lever_1, lever_3, rotary_1–5, power_2) are never visited</td><td>Demo does not cover the panel.</td></tr>
+  <tr><td>8</td><td>README claims "Cartesian planning" — code uses OMPL sampling (<code>plan()</code>)</td><td>Docs/code mismatch.</td></tr>
+</table>
+
+<h2 id="decisions">3. Design decisions (confirmed with the user)</h2>
+<table>
+  <tr><th>Decision</th><th>Choice</th><th>Rationale</th></tr>
+  <tr><td>Scope</td><td><b>All 12 knobs + 5 pokes</b></td><td>Full panel interaction.</td></tr>
+  <tr><td>Feedback source</td><td><b><code>/panel/joint_states</code></b> (already published by panel gz_ros2_control, all 12 knob state interfaces)</td><td>Single, already-present topic; plugin <code>/panel/switch/&lt;j&gt;/position|angle</code> topics used only as cross-check.</td></tr>
+  <tr><td>Lever detent</td><td><b><code>detent_stiffness</code> 10 → 0.4 N·m/rad</b></td><td>At 10, flipping needs ≈450 N at the knob tip (15.7 N·m at midpoint ÷ 0.035 m lever) — physically impossible. At 0.4, the arm needs ≈18 N max — feasible.</td></tr>
+  <tr><td>Success criteria</td><td>Lever: <code>|θ| ≥ 1.0 rad</code> (detent then snaps it to ±1.57). Rotary/power: <code>|Δθ| ≥ 2.0 rad</code> (wrap-safe). Poke: execution + arm tracking only (no sensor to verify contact).</td><td>Objective, physics-grounded thresholds.</td></tr>
+</table>
+
+<h2 id="physics">4. Physics &amp; geometry analysis (what actually works on a knob)</h2>
+
+<h3>4.1 Frame mapping</h3>
+<pre>panel_base fixed joint: (1.5, 0, 0) rpy (0,0,1.571)   →  world = (1.5 − panel_y, panel_x, panel_z)
+panel spawns at z = 0.02 (launch)                      →  all element poses computed at runtime from TF
+                                                          (panel_base_frame → world), never hardcoded.</pre>
+
+<h3>4.2 Lever flip mechanics (5 levers: main_switch, lever_switch_1..4)</h3>
+<div class="card">
+<ul>
+  <li>Joint: revolute about <b>panel-x = world-Y</b> (horizontal, along the face). Knob: box <code>0.008 × 0.035 × 0.006</code> protruding <b>35 mm</b> from the face (panel +y → world −x). Tip world position: <code>x ≈ 1.445, z = 0.240</code>.</li>
+  <li>Torque about the pivot = <code>F × 0.035</code> (knob arm). A side push (through the pivot axis) rotates <b>nothing</b> — only <b>up/down pushes of the tip</b> work.</li>
+  <li>Flip from θ=−1.57 (off) to +1.57 (on): the detent spring (now 0.4) opposes until the midpoint (max 0.63 N·m ≈ 18 N at the tip), then <b>snaps the lever the rest of the way</b>. The arm only needs to push the tip up ≈ 70 mm + margin ≈ <b>85 mm</b>; the last ~50 mm of the push presses air (harmless).</li>
+  <li>Push contact: flat tip face under the knob tip (tool0 +z along world +z), or the j5 cylinder <b>side-scoop</b> (tool0 +z horizontal — much better for the 4-DOF arm). The IK probe (B1) picks per element.</li>
+  <li>Neighbor clearance: levers 57 mm apart; j5 fingertip Ø60 mm → ≤ 30 mm from center-line < 57 mm ✓ no neighbor contact.</li>
+</ul>
+</div>
+
+<h3>4.3 Rotary / power knob spin (7 knobs: rotary_switch_1..5, power_switch_1..2)</h3>
+<div class="card">
+<ul>
+  <li>Joint: continuous about <b>panel-z = world-Z</b> (vertical). Knob: cylinder r12 mm × 25 mm (rotary) / r16 × 30 mm (power), protruding from the face. Tip face at world <code>x = 1.475</code> (rotary) / <code>1.470</code> (power).</li>
+  <li>Friction torque: 0.05 / 0.08 N·m. Radial presses rotate nothing (force through the axis) → <b>press the side and drag tangentially</b>; needed tangential force ≈ 0.08/0.012 ≈ <b>7 N</b>; with a 15 N press and μ≈1.0, available ≈ 15 N ✓.</li>
+  <li>Drag: j5 side face tangent on the <b>outer side of the row</b> (j5 center 30 mm from the knob axis; neighbor knobs are 31 mm apart → nearest neighbor axis sits ≥ 61 mm from the j5 center → j5 surface never touches it ✓). Drag 60–80 mm along world-Y gives ≈ 3–4 rad ≫ 2 rad target.</li>
+  <li>Modes verified per element by the probe: side-press + drag along −Y or +Y; fallback: press the knob's end-face edge (offset contact) if the drag pose is unreachable.</li>
+</ul>
+</div>
+
+<h3>4.4 Pokes (5 fixed elements)</h3>
+<p>Approach perpendicular to the face (tool0 +z along +X), stop 5 mm short, press 15 mm with the flat face. No panel-side verification (no sensor); success = execution + arm tracking. The foot (already merged) keeps the panel stable under all presses.</p>
+
+<h3>4.5 Tool0 rule</h3>
+<pre>Every contact pose: tool0 is 40 mm BEYOND the physical tip along tool0 +z.
+  tip_face_world = tool0_world + 0.04 · (tool0 z-axis)
+All pre-contact and push-end poses below already apply this rule.</pre>
+
+<h2 id="architecture">5. Proposed architecture</h2>
+
+<h3>5.1 Per-element state machine</h3>
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> Approach: setPoseTarget(preContact) OMPL plan+execute
+    Approach --> Push: hand-built 2-waypoint slow JTC goal (IK via setFromIK)
+    Push --> Verify: settle 0.5 s, read /panel/joint_states
+    Verify --> Retract: OK — OMPL back to clearance pose
+    Verify --> RetryPush: FAIL (≤ 1 retry, +5 mm depth)
+    RetryPush --> Verify
+    Retract --> Next: arm-tracking check |q - q_last| &lt; 0.05 rad
+    Next --> [*]: success counted, dwell 500 ms
+</pre>
+
+<h3>5.2 Data flow</h3>
+<pre class="mermaid">
+flowchart LR
+    A[/gz_ros2_control panel/] --> B[/panel/joint_states/]
+    B --> C{panel_interaction_demo}
+    C --> D[TF world→panel_base_frame]
+    D --> C
+    C --> E[arm_controller follow_joint_trajectory]
+    E --> F[/joint_states_ros/]
+    F --> C
+    C --> G[MoveGroupInterface arm + setFromIK]
+    C --> H[Verify: knob θ / Δθ thresholds]
+    H --> I[Summary: per-element OK/FAIL + measured deltas]
+</pre>
+
+<h3>5.3 Element table (17 entries)</h3>
+<table>
+  <tr><th>name</th><th>type</th><th>panel (px, py, pz)</th><th>world (x, y, z+0.02)</th><th>push</th><th>verify</th></tr>
+  <tr><td>electromagnet</td><td>POKE</td><td>0.240, 0.030, 0.050</td><td>1.470, 0.240, 0.070</td><td>face 15 mm</td><td>—</td></tr>
+  <tr><td>socket_grey</td><td>POKE</td><td>0.130, 0.010, 0.135</td><td>1.490, 0.130, 0.155</td><td>face 15 mm</td><td>—</td></tr>
+  <tr><td>socket_pink_2</td><td>POKE</td><td>0.265, 0.035, 0.135</td><td>1.465, 0.265, 0.155</td><td>face 15 mm</td><td>—</td></tr>
+  <tr><td>main_switch</td><td>LEVER</td><td>0.050, 0.020, 0.220</td><td>1.480, 0.050, 0.240</td><td>tip-up 85 mm</td><td>|θ| ≥ 1.0</td></tr>
+  <tr><td>lever_switch_1</td><td>LEVER</td><td>0.108, 0.020, 0.220</td><td>1.480, 0.108, 0.240</td><td>tip-up 85 mm</td><td>|θ| ≥ 1.0</td></tr>
+  <tr><td>lever_switch_2</td><td>LEVER</td><td>0.165, 0.020, 0.220</td><td>1.480, 0.165, 0.240</td><td>tip-up 85 mm</td><td>|θ| ≥ 1.0</td></tr>
+  <tr><td>lever_switch_3</td><td>LEVER</td><td>0.223, 0.020, 0.220</td><td>1.480, 0.223, 0.240</td><td>tip-up 85 mm</td><td>|θ| ≥ 1.0</td></tr>
+  <tr><td>lever_switch_4</td><td>LEVER</td><td>0.280, 0.020, 0.220</td><td>1.480, 0.280, 0.240</td><td>tip-up 85 mm</td><td>|θ| ≥ 1.0</td></tr>
+  <tr><td>rotary_switch_1</td><td>ROTARY</td><td>0.055, 0.025, 0.300</td><td>1.475, 0.055, 0.320</td><td>drag −Y 70 mm</td><td>|Δθ| ≥ 2.0</td></tr>
+  <tr><td>rotary_switch_2</td><td>ROTARY</td><td>0.086, 0.025, 0.300</td><td>1.475, 0.086, 0.320</td><td>drag −Y 70 mm</td><td>|Δθ| ≥ 2.0</td></tr>
+  <tr><td>rotary_switch_3</td><td>ROTARY</td><td>0.117, 0.025, 0.300</td><td>1.475, 0.117, 0.320</td><td>drag −Y 70 mm</td><td>|Δθ| ≥ 2.0</td></tr>
+  <tr><td>rotary_switch_4</td><td>ROTARY</td><td>0.148, 0.025, 0.300</td><td>1.475, 0.148, 0.320</td><td>drag −Y 70 mm</td><td>|Δθ| ≥ 2.0</td></tr>
+  <tr><td>rotary_switch_5</td><td>ROTARY</td><td>0.179, 0.025, 0.300</td><td>1.475, 0.179, 0.320</td><td>drag −Y 70 mm</td><td>|Δθ| ≥ 2.0</td></tr>
+  <tr><td>power_switch_1</td><td>ROTARY</td><td>0.210, 0.025, 0.300</td><td>1.475, 0.210, 0.320</td><td>drag −Y 70 mm</td><td>|Δθ| ≥ 2.0</td></tr>
+  <tr><td>power_switch_2</td><td>ROTARY</td><td>0.241, 0.025, 0.300</td><td>1.475, 0.241, 0.320</td><td>drag −Y 70 mm</td><td>|Δθ| ≥ 2.0</td></tr>
+  <tr><td>indicator_3</td><td>POKE</td><td>0.165, 0.005, 0.375</td><td>1.495, 0.165, 0.395</td><td>face 15 mm</td><td>—</td></tr>
+  <tr><td>aruco_tag_1</td><td>POKE</td><td>0.280, 0.001, 0.405</td><td>1.499, 0.280, 0.425</td><td>face 15 mm</td><td>—</td></tr>
+</table>
+<p class="kv">Visit order = table order (bottom→top, left→right). World coords shown are static references; runtime uses TF. Push modes are <i>probe-validated defaults</i> — the probe (B1) may switch a lever to tip-down or side-scoop, or a rotary to +Y drag.</p>
+
+<h2 id="blockers">6. Blocker analysis</h2>
+
+<div class="card blocker">
+<h3>B1 — 4-DOF IK reachability of contact poses <span class="badge b-bad">HIGH</span></h3>
+<p><b>What:</b> The arm has only 4 DOF (j1 yaw, j2/j3 pitch, j5 roll, j4 fixed). The new approach phases need a <b>defined tool0 orientation</b> (push direction). At a given tool0 position, only a constrained set of orientations is reachable (tip direction set by j2+j3+fixed j4; roll by j1+j5). Poses like "tip pointing straight up at x≈1.4, z≈0.2" may be unreachable.</p>
+<p><b>Impact:</b> A planned push pose that fails IK would abort that element's interaction. Worst case: some knobs can't be pushed from the "nice" direction.</p>
+<p><b>Verification experiment (E1 — IK probe, first implementation step):</b> A throwaway node that, for each of the 17 elements × 2–3 orientation variants (flat-face lift, side-scoop, tip-down, drag ±Y), computes the pre-contact and push-end tool0 poses (40 mm rule applied), calls <code>moveit::core::RobotState::setFromIK</code> on the <code>arm</code> group, samples the joint-interpolated path and checks tool0 clearance vs the panel face (x=1.5 plane) and knob cylinders analytically. Output: per-element chosen push mode + waypoint joint table (yaml).</p>
+<p><b>Mitigation:</b> Each element has a fallback chain (lift↔scoop↔tip-down; drag −Y↔+Y; press edge). The probe hard-fails loudly on any element with zero feasible variants — at that point we redesign that element's push before writing demo code.</p>
+<p><b>Residual risk:</b> LOW (fallback chain is rich); only exotic cases (e.g., power_switch_2 behind the rotary row) could be marginal.</p>
+</div>
+
+<div class="card blocker">
+<h3>B2 — OMPL cannot plan into contact; the push segment is open-loop <span class="badge b-bad">HIGH</span></h3>
+<p><b>What:</b> The push-end pose is <i>inside</i> the knob — a collision-state goal. OMPL will refuse it (and the planning scene already contains the panel). The push must be a hand-built 2-waypoint JTC trajectory (IK at pre-contact → IK at push-end), executed open-loop like today's restamped trajectories.</p>
+<p><b>Impact:</b> No collision guarantees on the push segment; a bad interpolation could swing the tip into the panel face or a neighbor knob (rotary row: 31 mm spacing vs Ø60 mm fingertip — the chosen outer-side tangent geometry avoids this by construction, B-verified in E1).</p>
+<p><b>Verification experiment:</b> E1 samples the interpolated tool0 path for every push segment and asserts clearance (analytic check vs panel planes and knob cylinders, ≥ 5 mm). E2 (single-knob sim test) physically confirms one lever flip and one rotary drag with the panel upright.</p>
+<p><b>Mitigation:</b> Push segments are short (≤ 85 mm), collinear-ish, and executed at low velocity (≈ 20–40 mm/s). Push depth is capped; verify-then-retry adds +5 mm only on failure.</p>
+<p><b>Residual risk:</b> MEDIUM — the lever's mid-push spring snap can make the tip lose contact earlier than planned (harmless, see B3), and a slip during a rotary drag may need a 2nd pass (built-in retry).</p>
+</div>
+
+<div class="card blocker">
+<h3>B3 — Lever flip feasibility (force budget) <span class="badge b-warn">MEDIUM</span> — design decision applied</h3>
+<p><b>What:</b> With <code>detent_stiffness = 10</code>, flipping requires 15.7 N·m at the pivot = ~450 N at the 35 mm tip — the arm cannot deliver that. With <code>0.4</code>: max opposing torque 0.63 N·m ≈ 18 N at the tip; joint torques ≈ 18 N·m on j2/j3 (≈1 m arm) vs the 50 N·m limit ✓. URDF effort limit 5.0 N·m > 0.63 ✓ (spring never hits it).</p>
+<p><b>Impact:</b> Without the tuning, levers can only be "touched", never flipped. After tuning, the flip is physically achievable and the detent still latches the lever at ±1.57 (spring to nearest detent, 0 torque at the detent — holds position).</p>
+<p><b>Verification experiment (E2):</b> flip one lever manually in the demo world; confirm the lever snaps past the midpoint and rests at +1.57 while the panel stays put.</p>
+<p><b>Residual risk:</b> LOW. Minor: with a softer detent a lever could wobble from sim noise near the midpoint — irrelevant (threshold is 1.0 rad).</p>
+</div>
+
+<div class="card blocker">
+<h3>B4 — Rotary drag: friction, grip and neighbor clearance <span class="badge b-warn">MEDIUM</span></h3>
+<p><b>What:</b> Spinning a r12 mm knob by friction drag: needed tangential ≈ 7 N vs available ≈ 15 N (15 N press × μ≈1.0 default). Neighbor clearance requires the tangent on the outer side (j5 center ≥ 61 mm from any neighbor axis — verified analytically, §4.3).</p>
+<p><b>Impact:</b> If the tip slips (μ lower than expected, or press too light), the knob barely rotates and the verify (|Δθ| ≥ 2 rad) fails → retry; worst case repeated failures.</p>
+<p><b>Verification experiment:</b> E2 drags one rotary knob; measure Δθ and slip. If slip: (a) increase press depth (more normal force), (b) add surface friction <code>&lt;gazebo reference="rotary_switch_X_knob"&gt;&lt;mu1&gt;1.5&lt;/mu1&gt;&lt;mu2&gt;1.5&lt;/mu2&gt;&lt;/gazebo&gt;</code> in the xacro, (c) lengthen the drag.</p>
+<p><b>Residual risk:</b> MEDIUM until E2 passes; then LOW.</p>
+</div>
+
+<div class="card blocker">
+<h3>B5 — Verification reliability via /panel/joint_states <span class="badge b-warn">MEDIUM</span></h3>
+<p><b>What:</b> The panel JSB publishes knob positions (state interfaces only; the knob joints are driven by plugin <code>SetForce</code> + collisions — exactly what we need). Risks: (a) message rate/latency (settle 0.5 s before reading), (b) rotary joints are continuous → angle wrap (compare <code>Δθ</code> with wrap correction), (c) a lever that flips <i>during the approach</i> (arm grazes it) must be detected — snapshot before the push, not before the approach, and treat "already flipped correctly" as a pass.</p>
+<p><b>Impact:</b> False FAILs (retry churn) or false PASSes (if the snapshot is taken after contact).</p>
+<p><b>Verification experiment:</b> E3 full run — logged per-element before/after knob values must match the GUI-observed knob states.</p>
+<p><b>Residual risk:</b> LOW.</p>
+</div>
+
+<div class="card blocker">
+<h3>B6 — Mock-mode parity / feedback unavailability <span class="badge b-warn">MEDIUM</span></h3>
+<p><b>What:</b> In mock mode (<code>use_gazebo:=false</code>) there are no plugins and no physics — <code>/panel/joint_states</code> publishes static knob values. Knob verification would fail by design.</p>
+<p><b>Impact:</b> The mock demo (still part of the repo's regression suite) would go red.</p>
+<p><b>Mitigation:</b> The demo takes the interactivity from the same flag as the launch: <code>interact := use_gazebo</code>. In non-interactive mode, verification is skipped and success = execution + tracking (current semantics), keeping mock parity. Auto-fallback: if <code>/panel/joint_states</code> delivers no data within 10 s, degrade to the same mode with a warning.</p>
+<p><b>Residual risk:</b> LOW.</p>
+</div>
+
+<div class="card blocker">
+<h3>B7 — Panel stability under arm contact <span class="badge b-good">LOW</span> — resolved by the foot</h3>
+<p>The invisible support foot (already merged, <code>panel.urdf.xacro:46–53</code>) extends the support polygon to x∈[1.40, 1.68] — the lumped COM (1.4986, 0.0166, 0.0189) projects 98 mm inside. All presses/drags of the new demo push the panel forward or sideways; the foot keeps it planted. <b>Verification:</b> E2/E3 assert the panel pose stays (0, 0, 0.005), zero rotation.</p>
+</div>
+
+<div class="card blocker">
+<h3>B8 — Execution time budget <span class="badge b-good">LOW</span></h3>
+<p><b>What:</b> 17 elements × (approach ≈ 5–10 s + push ≈ 3–4 s + verify/settle ≈ 1 s + retract ≈ 5–8 s + dwell) ≈ <b>7–9 minutes</b> vs ~2 min today.</p>
+<p><b>Mitigation:</b> Accept for v1 (it is a demonstration, not a benchmark); keep dwell at 500 ms; revisit only if a run exceeds 10 min. Optionally reduce approach velocity scaling to keep plans fast.</p>
+</div>
+
+<div class="card blocker">
+<h3>B9 — Trajectory timing vs controller velocity limits <span class="badge b-warn">MEDIUM</span></h3>
+<p><b>What:</b> The push goal is a 2-point trajectory. The JTC needs monotonic <code>time_from_start</code> and must respect the joint velocity limits (1.0 rad/s) while we want the push slow (~40 mm/s at the tip ≈ small joint rates ✓). The existing restamp trick (lines 205–213) already re-times flat plans — reuse it with a configurable push duration (3–4 s) and a first-waypoint check (must equal the live joint state, or the JTC rejects the goal).</p>
+<p><b>Impact:</b> Goal rejection / abrupt push if mistimed.</p>
+<p><b>Verification experiment:</b> E2/E3 log the JTC result code and arm tracking error during pushes.</p>
+</div>
+
+<h2 id="diffs">7. Proposed diffs (most relevant elements)</h2>
+
+<h3>7.1 <code>panel.urdf.xacro</code> — lever detent tuning (lines 714–757)</h3>
+<p class="kv">Same one-line change in all 5 lever plugin blocks (main_switch, lever_switch_1..4):</p>
+<pre class="diff">  &lt;gazebo&gt;
+  &lt;plugin name="" filename="liblever_switch_plugin"&gt;
+    &lt;joint&gt;main_switch&lt;/joint&gt;
+    &lt;off_position&gt;-1.57&lt;/off_position&gt;
+    &lt;on_position&gt;1.57&lt;/on_position&gt;
+<i>    &lt;detent_stiffness&gt;10.0&lt;/detent_stiffness&gt;</i>
+<b>    &lt;detent_stiffness&gt;0.4&lt;/detent_stiffness&gt;</b>
+  &lt;/plugin&gt;
+  &lt;/gazebo&gt;
+  &lt;!-- same edit at lines 728, 737, 746, 755 --&gt;</pre>
+<p class="kv">Optional (only if E2 shows rotary slip): append per-knob surface friction blocks, e.g. for the rotary row.</p>
+
+<h3>7.2 <code>panel_interaction_demo.cpp</code> — element table (replaces lines 20–40)</h3>
+<pre class="diff">-struct PanelTarget {
+-  std::string name;
+-  double x, y, z;
+-  double j1, j2, j3, j5; // fallback joint-space target
+-};
+-
+-// World-frame positions of panel elements, plus fallback joint-space targets.
+-// World positions are computed from panel_base frame via world_to_panel_base:
+-//   x = 1.5 - panel_y,  y = panel_x,  z = panel_z
+-static const std::vector&lt;PanelTarget&gt; kTargets = {
+-  {"electromagnet",   1.470, 0.240, 0.050,  -1.099, -0.806, 1.229, 0.0},
+-  {"socket_grey",     1.490, 0.130, 0.135,  -1.312, -0.959, 1.324, 0.0},
+-  {"socket_pink_2",   1.465, 0.265, 0.135,  -1.053, -0.500, 1.000, 0.0},
+-  {"main_switch",     1.480, 0.050, 0.220,  -1.467, -0.549, 1.352, 0.0},
+-  {"lever_switch_2",  1.480, 0.165, 0.220,  -1.240, -0.256, 0.907, 0.0},
+-  {"lever_switch_4",  1.480, 0.280, 0.220,  -1.043, -0.387, 1.045, 0.0},
+-  {"power_switch_1",  1.475, 0.210, 0.300,  -1.155, -0.115, 0.728, 0.0},
+-  {"indicator_3",     1.495, 0.165, 0.375,  -1.249, -0.173, 0.798, 0.0},
+-  {"aruco_tag_1",     1.499, 0.280, 0.405,  -1.060, -0.400, 1.000, 0.0},
+-};
++bstruct PanelElement {
++  std::string name;        // element name / knob joint name
++  enum class Type { LEVER, ROTARY, POKE } type;
++  double px, py, pz;       // pivot in panel_base frame [m]
++  double push_dir;         // +1 / −1 (LEVER: flip up/down · ROTARY: drag along ±world-Y)
++  double push_depth;       // contact travel [m]
++  double verify_threshold; // |θ| or |Δθ| for success [rad]; 0 for POKE
++};
++
++// Panel-frame pivots; world poses are computed at runtime from TF
++// (panel_base_frame → world) — no hardcoded world coords, no z=0.02 assumption.
++static const std::vector&lt;PanelElement&gt; kElements = {
++  {"electromagnet",  POKE,   0.240, 0.030, 0.050,  0.0, 0.015, 0.0},
++  {"socket_grey",    POKE,   0.130, 0.010, 0.135,  0.0, 0.015, 0.0},
++  {"socket_pink_2",  POKE,   0.265, 0.035, 0.135,  0.0, 0.015, 0.0},
++  {"main_switch",    LEVER,  0.050, 0.020, 0.220,  1.0, 0.085, 1.0},
++  {"lever_switch_1", LEVER,  0.108, 0.020, 0.220,  1.0, 0.085, 1.0},
++  {"lever_switch_2", LEVER,  0.165, 0.020, 0.220,  1.0, 0.085, 1.0},
++  {"lever_switch_3", LEVER,  0.223, 0.020, 0.220,  1.0, 0.085, 1.0},
++  {"lever_switch_4", LEVER,  0.280, 0.020, 0.220,  1.0, 0.085, 1.0},
++  {"rotary_switch_1",ROTARY, 0.055, 0.025, 0.300, -1.0, 0.070, 2.0},
++  {"rotary_switch_2",ROTARY, 0.086, 0.025, 0.300, -1.0, 0.070, 2.0},
++  {"rotary_switch_3",ROTARY, 0.117, 0.025, 0.300, -1.0, 0.070, 2.0},
++  {"rotary_switch_4",ROTARY, 0.148, 0.025, 0.300, -1.0, 0.070, 2.0},
++  {"rotary_switch_5",ROTARY, 0.179, 0.025, 0.300, -1.0, 0.070, 2.0},
++  {"power_switch_1", ROTARY, 0.210, 0.025, 0.300, -1.0, 0.070, 2.0},
++  {"power_switch_2", ROTARY, 0.241, 0.025, 0.300, -1.0, 0.070, 2.0},
++  {"indicator_3",    POKE,   0.165, 0.005, 0.375,  0.0, 0.015, 0.0},
++  {"aruco_tag_1",    POKE,   0.280, 0.001, 0.405,  0.0, 0.015, 0.0},
++};</pre>
+
+<h3>7.3 <code>panel_interaction_demo.cpp</code> — new feedback machinery (additions)</h3>
+<pre class="diff">+// ── knob state feedback (/panel/joint_states) ──
++std::mutex g_js_mutex;
++std::unordered_map&lt;std::string, double&gt; g_knob_pos;
++auto js_sub = node-&gt;create_subscription&lt;sensor_msgs::msg::JointState&gt;(
++  "/panel/joint_states", 10, [](const sensor_msgs::msg::JointState::SharedPtr m) {
++    std::lock_guard&lt;std::mutex&gt; lk(g_js_mutex);
++    for (size_t i = 0; i &lt; m-&gt;name.size(); ++i) g_knob_pos[m-&gt;name[i]] = m-&gt;position[i];
++  });
++
++// ── arm tracking feedback (/joint_states_ros) ──
++// same pattern → g_arm_pos[joint_name] (joint_1..joint_5)
++
++// ── TF: panel_base_frame → world (replaces hardcoded z=0.02 assumption) ──
++tf2_ros::Buffer tf_buffer(node-&gt;get_clock());
++tf2_ros::TransformListener tf_listener(tf_buffer);
++auto tf = tf_buffer.lookupTransform("world", "panel_base_frame",
++                                    tf2::TimePointZero, tf2::durationFromSec(10.0));
++
++// ── pose builder: element panel offsets → tool0 pre-contact pose (40 mm rule) ──
++// push_pose = panel_tf * offset(el, phase) + (0.04 · tool0_z)
++geometry_msgs::msg::Pose makeToolPose(const PanelElement & el, double along, double depth);
++
++// ── IK for hand-built push segments (no OMPL, no collision check on purpose) ──
++moveit::core::RobotState ik_state(move_group.getCurrentState());
++bool ok = ik_state.setFromIK(move_group.getRobotModel()-&gt;getJointModelGroup("arm"),
++                             push_end_pose, "tool0", attempts = 5);
++// joint values → 2-waypoint trajectory, restamped to 3–4 s total (existing trick, lines 205–213)</pre>
+
+<h3>7.4 <code>panel_interaction_demo.cpp</code> — interaction loop (replaces lines 182–251)</h3>
+<pre class="diff">  for (const auto &amp; el : kElements) {
+    double before = knobAngle(el);              // snapshot BEFORE approach (B5)
+    bool ok = true;
+    for (int attempt = 0; attempt &lt;= 1 &amp;&amp; ok; ++attempt) {
+      // 1. APPROACH — OMPL, orientation-constrained pre-contact pose
+      move_group.setPoseTarget(makeToolPose(el, pre_clearance, 0.0), "tool0");
+      if (planAndExecute(move_group, action_client, executor) != OK) { ok = false; break; }
+      // 2. PUSH — hand-built slow segment (IK via setFromIK), depth + attempt·5mm
+      if (executePush(ikTwoWaypoint(el, attempt)) != OK) { ok = false; break; }
+      // 3. VERIFY — settle 0.5 s, read /panel/joint_states
+      ok = verify(el, before);                  // LEVER |θ|≥1.0 · ROTARY wrap-safe |Δθ|≥2.0
+      if (!ok) RCLCPP_WARN(logger, "Knob '%s' did not verify (attempt %d), retrying deeper.",
+                           el.name.c_str(), attempt);
+    }
+    // 4. RETRACT — OMPL back to clearance pose (+50 mm), execute
+    planAndExecute(move_group, action_client, executor, retract_pose(el));
+    // 5. ARM-SIDE CHECK — |current_joint − last_waypoint| &lt; 0.05 rad (tracking feedback)
+    ok &amp;= armTracked();
+    ok ? ++succeeded : ++failed;
+    RCLCPP_INFO(logger, "%-18s %s (knob before=%.2f after=%.2f)",
+                el.name.c_str(), ok ? "OK" : "FAIL", before, knobAngle(el));
+  }
+  RCLCPP_INFO(logger, "Demo complete: %d succeeded, %d failed.", succeeded, failed);</pre>
+<p class="kv">Refactoring: lines 203–246 (restamp + goal send + result wait) extracted into <code>planAndExecute()</code> / <code>executeTrajectory()</code> helpers. <code>interact</code> flag (= <code>use_gazebo</code>) gates <code>verify()</code> and <code>knobAngle()</code> (B6). No launch-file changes: <code>/panel/joint_states</code> and <code>/joint_states_ros</code> already exist.</p>
+
+<h2 id="steps">8. Implementation steps &amp; validation</h2>
+<table>
+  <tr><th>#</th><th>Step</th><th>Artifact / command</th><th>Pass criteria</th></tr>
+  <tr><td>1</td><td>xacro detent tuning (7.1)</td><td><code>panel.urdf.xacro</code> — 5× <code>0.4</code></td><td>xacro builds; URDF converts without errors</td></tr>
+  <tr><td>2</td><td>E1 — IK &amp; clearance probe</td><td>throwaway node → <code>element_plan.yaml</code></td><td>17/17 elements have ≥1 feasible push variant; all sampled push paths clear panel/neighbors ≥ 5 mm</td></tr>
+  <tr><td>3</td><td>E2 — single-knob sim test</td><td>tiny driver node using the probe's waypoints in the demo world</td><td>one lever flips to ±1.57 and stays; one rotary Δθ ≥ 2 rad; panel stays (0,0,0.005) zero-rotation</td></tr>
+  <tr><td>4</td><td>Demo rework (7.2–7.4)</td><td><code>panel_interaction_demo.cpp</code> recompile</td><td>builds; node starts clean</td></tr>
+  <tr><td>5</td><td>E3 — full gazebo run</td><td><code>ros2 launch ... use_gazebo:=true</code></td><td>17/17 OK; logged deltas match GUI; panel upright; arm-tracking checks pass</td></tr>
+  <tr><td>6</td><td>E4 — mock regression</td><td><code>use_gazebo:=false</code></td><td>17/17 via execution semantics (no knob verification)</td></tr>
+</table>
+<p>Rough estimate: steps 1–3 ≈ half a day (probe is the bulk), steps 4–6 ≈ one day. Total ≈ 1.5 days.</p>
+
+<h2 id="files">9. Files touched</h2>
+<ul>
+  <li><code>src/rover_arm_panel_description/urdf/panel.urdf.xacro</code> — detent 10 → 0.4 (5 blocks); optional knob μ blocks.</li>
+  <li><code>src/rover_arm_moveit_config/src/panel_interaction_demo.cpp</code> — element table, feedback subscriptions, TF poses, approach/push/verify/retract loop, arm tracking, interact flag.</li>
+  <li>(optional) README motion description (drop "Cartesian" claim, document interaction flow).</li>
+  <li><b>No launch changes</b> — topics and remaps already in place.</li>
+</ul>
+
+<footer>
+Plan generated by opencode · v1.0 · Aug 02 2026 · Related: <code>.plans/mock_nav2_improvement.html</code> (earlier plan)
+</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'base', themeVariables:{
+  background:'#0f1115', primaryColor:'#14283f', primaryTextColor:'#e6e9ee',
+  primaryBorderColor:'#2a3038', lineColor:'#9aa4b0', secondaryColor:'#12281c',
+  tertiaryColor:'#13161b'}});</script>
+</body>
+</html>

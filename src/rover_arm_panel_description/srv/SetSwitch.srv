@@ -1,0 +1,6 @@
+string element_id
+float64 position
+bool state
+---
+bool success
+string message

@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="robot">
+    <!-- Xacro args to configure each EC drive module "position" value. -->
+    <xacro:arg name="base_front_left_wheel_position" default="0"/>
+    <xacro:arg name="base_middle_left_wheel_position" default="1"/>
+    <xacro:arg name="base_back_left_wheel_position" default="2"/>
+    <xacro:arg name="base_front_right_wheel_position" default="3"/>
+    <xacro:arg name="base_middle_right_wheel_position" default="4"/>
+    <xacro:arg name="base_back_right_wheel_position" default="5"/>
+
+    <ros2_control name="ec_single_axis" type="system">
+        <hardware>
+            <plugin>ethercat_driver/EthercatDriver</plugin>
+            <param name="master_id">0</param>
+            <param name="control_frequency">100</param>
+        </hardware>
+
+        <joint name="base_front_left_wheel_joint">
+            <state_interface name="position"/>
+            <state_interface name="velocity"/>
+            <command_interface name="velocity"/>
+            <command_interface name="position"/>
+            <command_interface name="reset_fault"/>
+            <ec_module name="simco_front_left">
+                <plugin>ethercat_generic_plugins/EcCiA402Drive</plugin>
+                <param name="alias">0</param>
+                <param name="position">$(arg base_front_left_wheel_position)</param>
+                <param name="debug">True</param>
+                <param name="mode_of_operation">3</param>
+                <param name="slave_config">$(find my_robot_bringup)/config/SIM2015D_slave_config_gem.yaml</param>
+                <param name="auto_fault_reset">true</param>
+                <param name="auto_enable">true</param>
+            </ec_module>
+        </joint>
+        <joint name="base_middle_left_wheel_joint">
+            <state_interface name="position"/>
+            <state_interface name="velocity"/>
+            <command_interface name="velocity"/>
+            <command_interface name="position"/>
+            <command_interface name="reset_fault"/>
+            <ec_module name="simco_middle_left">
+                <plugin>ethercat_generic_plugins/EcCiA402Drive</plugin>
+                <param name="alias">0</param>
+                <param name="position">$(arg base_middle_left_wheel_position)</param>
+                <param name="mode_of_operation">3</param>
+                <param name="slave_config">$(find my_robot_bringup)/config/SIM2015D_slave_config_gem.yaml</param> 
+                <param name="auto_fault_reset">true</param>
+                <param name="auto_enable">true</param>
+            </ec_module>
+        </joint>
+        <joint name="base_back_left_wheel_joint">
+            <state_interface name="position"/>
+            <state_interface name="velocity"/>
+            <command_interface name="velocity"/>
+            <command_interface name="position"/>
+            <command_interface name="reset_fault"/>
+            <ec_module name="simco_back_left">
+                <plugin>ethercat_generic_plugins/EcCiA402Drive</plugin>
+                <param name="alias">0</param>
+                <param name="position">$(arg base_back_left_wheel_position)</param>
+                <param name="mode_of_operation">3</param>
+                <param name="slave_config">$(find my_robot_bringup)/config/SIM2015D_slave_config_gem.yaml</param>
+                <param name="auto_fault_reset">true</param>
+                <param name="auto_enable">true</param>
+            </ec_module>
+        </joint>
+        <joint name="base_front_right_wheel_joint">
+            <state_interface name="position"/>
+            <state_interface name="velocity"/>
+            <command_interface name="velocity"/>
+            <command_interface name="position"/>
+            <command_interface name="reset_fault"/>
+            <ec_module name="simco_front_right">
+                <plugin>ethercat_generic_plugins/EcCiA402Drive</plugin>
+                <param name="alias">0</param>
+                <param name="position">$(arg base_front_right_wheel_position)</param>
+                <param name="mode_of_operation">3</param>
+                <param name="slave_config">$(find my_robot_bringup)/config/SIM2015D_slave_config_gem.yaml</param>
+                <param name="auto_fault_reset">true</param>
+                <param name="auto_enable">true</param>
+            </ec_module>
+        </joint>
+        <joint name="base_middle_right_wheel_joint">
+            <state_interface name="position"/>
+            <state_interface name="velocity"/>
+            <command_interface name="velocity"/>
+            <command_interface name="position"/>
+            <command_interface name="reset_fault"/>
+            <ec_module name="simco_middle_right">
+                <plugin>ethercat_generic_plugins/EcCiA402Drive</plugin>
+                <param name="alias">0</param>
+                <param name="position">$(arg base_middle_right_wheel_position)</param>
+                <param name="mode_of_operation">3</param>
+                <param name="slave_config">$(find my_robot_bringup)/config/SIM2015D_slave_config_gem.yaml</param>
+                <param name="auto_fault_reset">true</param>
+                <param name="auto_enable">true</param>
+            </ec_module>
+        </joint>
+        <joint name="base_back_right_wheel_joint">
+            <state_interface name="position"/>
+            <state_interface name="velocity"/>
+            <command_interface name="velocity"/>
+            <command_interface name="position"/>
+            <command_interface name="reset_fault"/>
+            <ec_module name="simco_back_right">
+                <plugin>ethercat_generic_plugins/EcCiA402Drive</plugin>
+                <param name="alias">0</param>
+                <param name="position">$(arg base_back_right_wheel_position)</param>
+                <param name="mode_of_operation">3</param>
+                <param name="slave_config">$(find my_robot_bringup)/config/SIM2015D_slave_config_gem.yaml</param>
+                <param name="auto_fault_reset">true</param>
+                <param name="auto_enable">true</param>
+            </ec_module>
+        </joint>
+    </ros2_control>
+</robot>

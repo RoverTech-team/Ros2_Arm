@@ -1,0 +1,1989 @@
+ 
+ 
+ 
+ 
+2 
+ 
+1. Record of Changes 
+Revision Date Section Description 
+1 20.02.2026 All Public document version – initial issue.  
+2 26.03.2026 
+§6.4 Delivery of 
+Documentation 
+ 
+Preliminary Report Template 
+Science Planning Report Delivery Date changed to be aligned with Appendix 
+1 – Schedule. 
+ 
+Template updated (Financial Part), Rev. 2 added. 
+3 19.07.2026 
+§4.3 Personal Data and 
+Intellectual Property – 
+Storage and Use 
+ 
+§6.4 Delivery of 
+Documentation 
+ 
+Appendix 1 – Schedule 
+ 
+ 
+Requirements 
+ 
+Final Report Template 
+Paragraph’s name updated.  
+External partners and LLM tools added as exceptions. 
+ 
+ 
+Dates updated (meetings and deliverables) in order to reflect the current 
+state. 
+ 
+Dates updated (meetings and deliverables) in order to reflect the current 
+state. 
+ 
+REQ-OPS-130 was clarified – no impact on design. 
+ 
+Typo corrected. Final RF Form is not included in the 35 pages limit. 
+ 
+ 
+ 
+3 
+ 
+2. Lists 
+2.1 Contents 
+ 
+1. Record of Changes ................................................................................................................................. 2 
+2. Lists ....................................................................................................................................................... 3 
+2.1 Contents........................................................................................................................................ 3 
+2.1 Figures ................................................................................................................................................. 5 
+2.2 Tables ............................................................................................................................................ 5 
+3. General Information ............................................................................................................................... 6 
+3.1 European Rover Challenge – Introduction ........................................................................................ 6 
+3.2 Schedule and Venue ...................................................................................................................... 6 
+3.3 Information Channels and Contacts ............................................................................................... 6 
+3.4 Rules ............................................................................................................................................. 6 
+3.5 Milestones ..................................................................................................................................... 6 
+3.6 Awards and Recognitions ............................................................................................................... 7 
+3.7 Qualification .................................................................................................................................. 8 
+3.7.1 Qualification to the Finals ........................................................................................................... 8 
+3.7.2 Wild Card ................................................................................................................................... 8 
+3.8 Organizer’s Disclaimer ................................................................................................................... 8 
+3.9 Changes to the Competition Rules .................................................................................................. 8 
+3.10 Deadline Extension ........................................................................................................................ 9 
+3.11 Q&A ............................................................................................................................................... 9 
+3.12 Challenge Scoring Issues ............................................................................................................... 9 
+3.13 Organizational Issues ..................................................................................................................... 9 
+3.14 General Challenge Issues ............................................................................................................... 9 
+3.15 Disqualification .............................................................................................................................. 9 
+3.16 Cancellation of Event ..................................................................................................................... 9 
+3.17 Organizer’s Responsibility .............................................................................................................. 9 
+3.18 Copyright ....................................................................................................................................... 9 
+4. Teams .................................................................................................................................................. 10 
+4.1 Team Members ............................................................................................................................ 10 
+4.2 Registration ................................................................................................................................. 10 
+4.3 Personal Data Storage and Use ..................................................................................................... 11 
+4.4 Teams’ and Members’ Responsibilities .......................................................................................... 11 
+5. Requirements....................................................................................................................................... 12 
+5.1 Rover and Drone Requirements .................................................................................................... 12 
+ 
+4 
+ 
+5.2 Communication Requirements ..................................................................................................... 12 
+5.2.1 Accepted Frequencies .............................................................................................................. 12 
+5.2.2 Other Communication Rules .................................................................................................... 13 
+6. Deliverables ......................................................................................................................................... 15 
+6.1 General Information ..................................................................................................................... 15 
+6.2 Documentation ............................................................................................................................ 15 
+6.2.1 Preliminary Report .................................................................................................................... 15 
+6.2.2 Final Report ............................................................................................................................. 15 
+6.2.3 Radio Frequency Form .............................................................................................................. 15 
+6.2.4 Science Planning Report ........................................................................................................... 16 
+6.3 Video ........................................................................................................................................... 16 
+6.4 Delivery of Documentation ........................................................................................................... 16 
+7. ERC 2026 Tasks .................................................................................................................................... 18 
+7.1 General Information – the Story..................................................................................................... 18 
+7.2 Field Trials ................................................................................................................................... 19 
+7.2.1 General .................................................................................................................................... 19 
+7.2.2 Schedule ................................................................................................................................. 20 
+7.2.3 Challenge Site Details .............................................................................................................. 20 
+7.2.4 Operations ............................................................................................................................... 20 
+7.3 Tasks’ Definition ........................................................................................................................... 21 
+7.3.1 Science Task ............................................................................................................................ 21 
+7.3.2 Navigation Task ........................................................................................................................ 35 
+7.3.3 Maintenance Task .................................................................................................................... 42 
+7.3.4 Probing Task ............................................................................................................................. 44 
+7.3.5 Presentation Task ..................................................................................................................... 46 
+7.4 Time Available for Tasks and Locations ......................................................................................... 48 
+Appendix 1 – Schedule ................................................................................................................................. 49 
+Appendix 2 – Scoring .................................................................................................................................... 50 
+Appendix 3 – Requirements .......................................................................................................................... 50 
+Appendix 4 – RFCC ...................................................................................................................................... 51 
+Appendix 5 – RF Form .................................................................................................................................. 51 
+Appendix 6 – Preflight Check Description ...................................................................................................... 51 
+ 
+ 
+ 
+5 
+ 
+2.1 Figures 
+Figure 1: Example of horizontal and vertical RF antenna radiation pattern for ground station ........................... 15 
+Figure 2: Example of Scientific Exploration based on ERC 2024. Start from S1 point, exploration of the Mars Yard 
+with discovery of easter eggs and geological features, finally return to S1....................................................... 24 
+Figure 3: Example of surface sampling based on ERC 2024. Start from S3 point, rocks sampling at SS#2, regolith 
+collection at SS#1 and return to S3. .............................................................................................................. 26 
+Figure 4: Example of deep sampling based on ERC 2024. Start from S3 point, deep sampling at DS and return to 
+S3. .............................................................................................................................................................. 28 
+Figure 5: Example of drilling location (left) and foreseen colours of the layers for the Deep Sampling Sub -Task 
+(right) .......................................................................................................................................................... 29 
+Figure 6: Example of Astro-Bio Sub-Task based on ERC 2024. Start from S7 point, selection of 1 of 5 measurement 
+points and performance of astro -biological measurements used for data analysis. Go back to the start line. 
+Attention! Astro-Bio Sub-Task will have a separate zone on Mars Yard in 2026 (as e.g. Sampling Sub-Tasks) .... 33 
+Figure 7: Example of Traverse Sub -Task based on ERC 2024. Start from S4 point, reaching points A -B-C-D and 
+going back to the start line. .......................................................................................................................... 36 
+Figure 8: Example of marker ......................................................................................................................... 38 
+Figure 9: Dimensions of landmarks............................................................................................................... 39 
+Figure 10: ArUco markers to be used on landmarks ....................................................................................... 39 
+Figure 11: ERC 2026 Droning Sub-Task – Sectors ........................................................................................... 41 
+Figure 11: ERC 2026 Droning Sub-Task plan .................................................................................................. 42 
+Figure 12: Example of Maintenance Task based on ERC 2024. Start from S6 point, reaching the panel and perform 
+manipulation sequence. .............................................................................................................................. 43 
+Figure 13: ERC 2026 Maintenance Task panel. The front workspace panel is 330 mm wide and 450 mm tall. Note: 
+the placement of specific elements is only illustratory here and is subject to change. .................................... 44 
+7.3.4 14Probing Task ................................................................................................................................. 44 
+Figure 15: Example of Probing Task based on ERC 2024. Start from S4 point (or another location), collecting 3 
+probes and going back to the start line. ......................................................................................................... 45 
+Figure 16: Dimensions of the probes ............................................................................................................. 45 
+ 
+2.2 Tables 
+Table 1: ERC Milestones ................................................................................................................................. 7 
+Table 2: ERC Deliverables with Links ............................................................................................................. 17 
+Table 3: ERC 2026 Navigation Traverse Factors ............................................................................................. 37 
+Table 4: Time allocations, locations and number of teams competing in each task ......................................... 48 
+Table 5: ERC 2026 Schedule ......................................................................................................................... 49 
+Table 6: Q&A Sessions Schedule .................................................................................................................. 49 
+  
+ 
+ 
+6 
+ 
+3. General Information 
+3.1 European Rover Challenge – Introduction 
+The European Rover Challenge (ERC) is an integrated programme working towards technological developments 
+with space exploration utilised as the leading theme. The goal of the ERC is to become a standardised test trial 
+and benchmark for planetary robotic activities, coupled with strong professional career development platform. 
+The ERC consists of an engineering project where university teams build robots to compete on an extra-terrestrial 
+inspired arena performing tasks based on international roadmaps for sp ace robotics. This means that the 
+competition tasks present the same level of problems as industry drivers for space robotics which have been 
+devised for future decades. Perhaps most importantly, whilst set against the background of a competition, the 
+ERC is a continuous mentoring effort which is intended to educate the next generation of multidisciplinary 
+engineers, boost innovation in research and business, and popularise STEM (Science, Technology, Engineering 
+and Mathematics) advancements, all conceptually rooted in future space exploration. 
+The European Rover Challenge is owned and coordinated by the European Space Foundation, organized in 
+cooperation with a group of independent experts who make up the steering and jury boards. These rules and 
+tasks are prepared by the Polish Space Professionals Association’s and its experts. 
+3.2 Schedule and Venue 
+ERC is a venue independent, year -round programme. For information about the current ERC edition venue, 
+please follow our updates on the challenge website. The official schedule can be found in the Appendix 1 – 
+Schedule. 
+ERC 2026 is organized in Kraków on the premises of AGH University of Science and Technology. 
+3.3 Information Channels and Contacts 
+The Challenge’s website address: www.roverchallenge.eu. 
+Teams Contact Point’s email address: teams@roverchallenge.eu. 
+The official communication channel for challenge announcements is the list of email addresses provided by 
+Teams during registration process. In addition, Slack tool will be used to assure the daily-based contact with the 
+Teams participating in ERC. All Team Members will be duly invited by the Organizer to register on the ERC Slack 
+group. 
+3.4 Rules 
+Rules of the ERC 2026 are included in the following complementary documents: 
+▪ Rules with all appendices to this document (e.g. templates, matrix of compliance) 
+▪ Presentations for Teams (these will be organized for the teams to explain rules and requirements as well 
+as to allow participation in the Q&A session) 
+▪ Update Report #3 (details about the final arrangements of the tasks) 
+All the mentioned above documents can be found on www.roverchallenge.eu (in the competitor’s zone tab). 
+3.5 Milestones 
+ERC is divided into milestones. This section provides the list and rules of each milestone the teams will approach 
+during the ERC preparation and performance. The milestones and schedule is attached in the Appendix 1 – 
+Schedule. 
+ 
+ 
+7 
+ 
+Milestone Milestone Name Deliverables Delivered By 
+KO Kick-Off: Registration End Registration Forms Teams 
+PDR-1 Preliminary Design Review: Step 1 Preliminary Design Report 
+Preliminary Radio Frequency Form 
+Teams 
+PDR-2 Preliminary Design Review: Step 2 Video Teams 
+QUALIFICATION  
+CDR-1 Critical Design Review: Step 1 Final Design Report Teams 
+CDR-2 Critical Design Review: Step 2 Final Radio Frequency Form 
+Science Planning Report 
+Teams 
+ERC FINALS 
+TRR Test Readiness Review Team presence ag the briefing is required Teams 
+PTR Post Test Review Participation in the ERC tasks on the Mars Yard Teams 
+FP/FR Final Presentation/Review Participation in the Presentation Task Teams 
+THE END OF THE ERC 
+Table 1: ERC Milestones 
+Content of the abovementioned documentation is provided in the templates.  
+In addition, Update Reports will be published by the organizer. Those milestones do not need any deliverables 
+from the Teams but are intended to clarify requirements and provide additional information to the Teams to 
+proceed with and finalise the rover’s design. The milestone will be delivered in a form of report sent to the Teams 
+contact point’s email address. 
+▪ Update Report #1 (update of the Rules including scoring, remaining documents templates) 
+▪ Update Report #2 (clarifications from the organizer, remaining documents templates) 
+▪ Update Report #3 (so called Environmental Report that includes data required for the final competition 
+and Science Planning Report  – 3D model of the Mars Yard and relevant de scription, drone photos , 
+locations of the points on the Mars Yard incl. starting points, navigation waypoints, sampling locations 
+etc.) 
+3.6 Awards and Recognitions 
+The first three best teams will be presented an award. Multiple other awards are planned to recognise excellence 
+in different parts of the programme and competitions. The form of the awards will be specified on the challenge 
+website. The Organizer may also allow awards funded by third parties. Third-party award funders must have the 
+Organizer’s approval. 
+The following awards are foreseen: 
+▪ 1st place 
+▪ 2nd place 
+▪ 3rd place 
+▪ Best team awards for each task accomplished (showing exceptional performance or approach, not 
+necessarily based on the sum of points scored), i.e.  
+✓ Science – Scientific Exploration 
+✓ Science – Sampling 
+✓ Science – Astro-Bio 
+✓ Navigation – Traverse 
+✓ Navigation – Droning 
+✓ Maintenance 
+✓ Probing 
+✓ Presentation 
+▪ It is considered that other type of awards may be granted, however decision on this depends on other 
+factors, e.g. budget, sponsorships, fair play attitude of the teams etc.  
+ 
+8 
+ 
+By taking part in the ERC, teams agree to place a promotional sticker on their rover (max. size of the sticker: 
+10x10cm).  
+Number of commemorative medals for each awarded Team is limited to 30  (medals are not applicable for 
+the best team awards for tasks accomplished). In case there are more than 30 members of the team present in 
+Poland the additional ones over 30 may receive certificates only. 
+It is foreseen that the winning rovers (i.e. places 1 st-3rd) will get the commemorative sticker placed on it by the 
+organizer for each place.  
+Digital certificates of participation in the ERC will be given only to the participants who actively 
+participated in development of the rover for the competition’s final (not necessarily were present in Poland, 
+however members of teams who were present in Poland will receive additional line in the certificate confirming 
+their participation in the final event). The team is responsible for defining who has actively participated in these 
+activities (at the registration and to be confirmed after completion of the ERC, the number of team members will 
+be verified – situation that a team has grown by significant number of ‘active’ members will be considered as 
+unrealistic). System for registration will be provided by the organizer. Moreover, issuing certificates for team 
+members that have not provided filled GDPR forms will not be possible. 
+No certificates will be given to the teams who do not appear in Poland for the ERC final (i.e. qualification 
+without attendance is not sufficient).  
+3.7 Qualification 
+3.7.1 Qualification to the Finals 
+The ERC finals are planned for a limited number of teams. At the moment up to 20 teams are considered by 
+the organizer, however this number may be changed until announcement of the final qualification lists. Together 
+with the jury board, the organizer will choose which of the registered teams will be invited to compete in the 
+challenge. The choice will be made based on the documentation  delivered by teams  (described in the 
+documentation section and in the t emplates). The organizer will announce qualifying teams before another 
+deadline given in the schedule. 
+3.7.2 Wild Card 
+The organizer reserves the right to qualify up to 5 teams based on  subjective assessment of their 
+performance (e.g. despite of worse performance in the delivered reports  which is the usual case for the new 
+teams, the delivered video shows exceptional performance of their rover and drone. Therefore, only 15 out of 20 
+teams (in the worst case) can be qualified based on the achieved scoring.  
+3.8 Organizer’s Disclaimer 
+Teams take full responsibility for any damages, accidents or unsettling events caused by their hardware as 
+well as by the members of the team.  It is especially critical in case of drone flying  – it is allowed only in the 
+droning cage that will be provided by the organizer. Any flights performed outside of the drone cage are teams’ 
+responsibility (consider local droning rules and obtaining additional aircraft damage insurance  – Aero 
+Casco if you plan to perform any test flights outside the droning cage). Teams are obliged to follow all safety 
+and good conduct rules specified by the organizers. Any breaches of safety rules and requirements will result in 
+the disqualification of the team from the entire competition. 
+3.9 Changes to the Competition Rules 
+The organizer retains the right to extend the deadline for the submission of documents and provide essential but 
+inevitable changes to the competition rules. However, any changes introduced cannot concern key issues for the 
+rover’s design. All changes will be announced in advance and provided on the challenge’s website. 
+ 
+9 
+ 
+3.10 Deadline Extension 
+The organizer has the right to extend the deadline for submission of documents. All deadline extensions will be 
+announced in advance and provide details on the challenge website. Deadline extensions are not granted based 
+on a single team’s requests and will be provided only in case of a clear need based on the current circumstances 
+that might have significantly affected time available for teams to deliver the required documentation. 
+3.11 Q&A 
+Answers to any challenge related questions that arise will be provided on the challenge’s website, SLACK group 
+or during the Q&A meetings with teams. If you have questions, please contact the challenge contact point. 
+The organizer will provide ‘European Rover Challenge Questions & Answers’ meetings as a part of the competition 
+rules. All arrangements contained therein are ultimately binding – even if they change the competition rules. The 
+Q&A meetings will be announced in advance and presentations from those will be provided on the challenge’s 
+website (in the Rules catalogue). 
+3.12 Challenge Scoring Issues 
+All issues with scoring during the challenge will be resolved solely by the independent jury (i.e. challenge judges 
+or head of jury). Teams cannot appeal to any other party. 
+3.13 Organizational Issues 
+Organizational issues, including team eligibility, challenge organization and execution of jury decisions will be 
+resolved by the organizer. 
+3.14 General Challenge Issues 
+In case any conflict related to the challenge is encountered, the organizer’s decision will be considered as final 
+and binding. 
+3.15 Disqualification 
+The organizer may disqualify a team in the event of a serious breach of the rules, safety regulations or fair play. 
+3.16 Cancellation of Event 
+The organizer reserves the right to cancel the ERC finals in the event of circumstances preventing its safe 
+organization. In case of event cancellation, the organizer will decide on the alternative approach and present it 
+to the teams affected by the decision.  
+3.17 Organizer’s Responsibility 
+The organizer’s civil liability is limited solely to the responsibility for organizing a mass event in accordance with 
+the Polish law and local regulations. 
+3.18 Copyright 
+The organizer retains all copyright to the competition rules, especially the description of the tasks. No alterations 
+or additions to the competition rules can be made and their sale is expressly forbidden. The rules can only be 
+used or copied for the ERC-connected activities (e.g. registration process). 
+ 
+ 
+10 
+ 
+4. Teams 
+4.1 Team Members 
+75% of a team must be comprised of higher education students and recent graduates (i.e. max two years after 
+receiving master’s or PhD degree): undergraduate and masters -degree level students (with no limitations) and 
+PhD students. It is highly recommended that teams cooperate with specialists from different institutions, but 
+students must prepare and sign all the required documentation themselves. 
+A team may consist of students from more than one higher education institution. An institution may also be 
+affiliated with more than one team. Team membership is exclusive – each person can only be a member of one 
+team. 
+In case the abovementioned requirement is not fulfilled, please contact the organizer to confirm if your team can 
+register for the competition. 
+4.2 Registration 
+The Team registration shall be done by filling and sending the form provided by the organizer (link:  
+https://forms.gle/do7Fqv9DBKQTkaJv7). It shall include e.g.: 
+▪ The name of the institution with which the team is affiliated (if the team is affiliated with more than one 
+institution, please list all the names, in descending order of involvement) 
+▪ Team name 
+▪ Rover name (may be the same as the team's name) 
+▪ Short planning description (in case the Team takes part in both on-site and remote formulas) 
+▪ The approximate number of team members who plan on coming to the challenge (i.e. appear on site) 
+▪ Team contact point: the contact’s name and surname, telephone number and email address (remember 
+that this email address will be used as the main contact. No information from the organizer will be 
+delivered to any other address – please refer to the “Comments on the contact point”). 
+▪ University team coordinator/supervisor and key members: name and surname, telephone number and 
+email address 
+▪ Project website address and Facebook fan-page (if applicable) 
+▪ The following declaration in English: 
+ 
+'By sending this application and registering the team to the European Rover Challenge each team 
+member fully accepts all terms and provisions of the ERC rules and all final decisions of the 
+European Rover Challenge organizer. ' 
+ 
+▪ To register the team to participate in the competition, complete the application form, sign GDPR form 
+(print and scan separate for each team member mentioned with name and surname in the form) and 
+attach it in the registration form. In case the team qualifi es to the ERC finals, GDPR forms for all team 
+members have to be delivered (scan of the signed by hand form or certified signature – NOT the ones 
+provided in various PDF reader applications), otherwise issuing certificates for the team members that 
+have not delivered GDPR forms will not be possible 
+In case of any issues with attaching the requested files in the registration form, please send these to the 
+following address: teams@roverchallenge.eu. Use your contact point’s email address (see ‘General 
+comments on the CONTACT POINT’ below) and confirm with us that we have received your registration. 
+ 
+ 
+11 
+ 
+General comments on the CONTACT POINT: 
+ 
+▪ All teams are requested to create alias address teamname@xx.yy (where xx and yy are not defined 
+and can be selected by the teams).  
+▪ It is advised that the mentioned alias shall resend all the received messages to all members of the 
+team in order to minimise chance to omit any of the information received from the organizer. 
+▪ It has to be highlighted that messages from the organizer will be send only to the defined contact 
+point’s email address (teamname@xx.yy, see above). The organizer is responsible only for sending all 
+the details to the contact point’s email address. Teams are responsible to check the provided contact 
+point’s emails on a regular basis in order not to miss any important communication from the organizer. 
+▪ No response will be provided to the email addresses other than the contact point. These emails will be 
+considered as spam.   
+ 
+The organizer will try to respond to all messages posted on the ERC SLACK group, however short time of 
+response cannot be guaranteed in this case. The primary contact will be Q&A sessions. Those will be held 1-2 
+weeks after every update of the Rules and be fore the important ERC milestones (delivery of documentation, 
+briefings before ERC finals). 
+4.3 Personal Data and Intellectual Property – Storage and Use 
+Team members agree to their personal data, the documentation delivered as well as other promotional materials 
+and visuals being stored and processed in the organizer’s computer systems for the purpose of the ERC 
+programme. 
+On the other hand, the organizer will keep all technical documentation confidential and will not publish or 
+disclose it to any third parties without prior approval from the team’s representatives. The sole exception to this 
+is the challenge’s jury team – technical documentation will be disclosed to judges for scoring and mentoring 
+purposes only. This exception is applicable also to additional tasks  organized by ERC’s external partners, such 
+as ERC side tasks organized by external entities and use of AI /LLM tools that may be used to confirm scor es 
+provided by judges and originality of the provided documentation. 
+The team members also give the organizer, parties designated by the organizer and the audience, the right to 
+disclose and publish any photos, videos or other visuals, their names and surnames, identifiable pictures of 
+themselves and any other persons, as well as pictures of machines, devices, and equipment in any and all of the 
+available formats, by any and every known method, in any and every known medium. 
+Teams grant permission to the organizer to use promotional materials and visuals (e.g. photos and videos), as 
+well as any additional photos, videos, portraits, documents, interviews, and other materials resulting from 
+participation in the challenge (using the name of the participant or not) on all media, in any language, anywhere 
+in the world, in any manner, for advertising and promotional purposes. 
+Personal data and information about team members other than their names and surnames will not be published 
+without the prior consent of each team member. 
+4.4 Teams’ and Members’ Responsibilities 
+Teams and team members accept sole responsibility for securing and ensuring the safety of their equipment and 
+luggage in the challenge’s location. They release the organizer from liability in the event of damage, destruction, 
+or theft of any property. 
+ 
+ 
+12 
+ 
+5. Requirements 
+5.1 Rover and Drone Requirements 
+Each rover and drone must be compliant with the requirements listed in Appendix 3 – Requirements to take part 
+in the challenge. Special cases of non-compliance should be discussed with the organizer as soon as possible 
+in the development process. The organizer has the right to exclude the team from field trials, especially when 
+non-compliances are reported too late (e.g. during the finals). It is highly recommended that teams present their 
+status of compliance with the specified requirements in a transparent way in their technical reports (i.e. 
+Preliminary Report and Final Report). 
+5.2 Communication Requirements 
+Radio communication with the rover shall be designed for use of legally available frequencies and power levels.  
+▪ It is expected that the maximum distance between the rover and the antenna mast would be less 
+than 100 meters. 
+▪ It shall be highlighted that direct line-of-sight between the control base and rover antennas may be 
+occluded by different forms of terrain morphology. 
+▪ Using standard communication such as WiFi  2.4 GHz may be difficult as there will be multiple 
+networks available in the vicinity (university networks, organizer’s networks, private networks 
+established by people in the audience, bluetooth devices etc.). These networks may interfere with 
+the participants’ networks. Therefore, the rover and drone communication performance shall be 
+checked before the competition in such environment. It is recommended to e.g. use 5  GHz WiFi 
+instead of 2.4 GHz (more channels are available and less issues are expected but at the same time 
+▪ Judges at ERC will organize band assignment, to separate frequences between teams.  
+▪ In rare cases the same WiFi channel can be assigned to multiple teams.  
+▪ Radio channel interference is not a base for task redo. 
+5.2.1 Accepted Frequencies 
+The following frequencies can be accepted for the ERC. 
+ 
+Radio Amateur Bands 
+Accepted bands up to 1 W signal transmitted and up 10 W EIRP. 
+▪ 144 - 146 MHz 
+▪ 430 - 440 MHz 
+▪ 1240 - 1300 MHz 
+▪ 5650 - 5850 MHz 
+It is highly recommended that each Team should have at least one member with an amateur radio license (CEPT 
+class T/R 61 -01). When using amateur radio bands, team should provide a scan of the license of at least one 
+member. 
+ 
+2.4 GHz Band (2412 - 2472 MHz) 
+Only Wi -Fi communication standard is accepted (IEEE 802.11). Any other systems such as analogue video 
+cameras or RC controllers are forbidden. 
+▪ Accepted channels: 1-13 (centre frequency 2412 MHz – 2472 MHz). WiFi channel 1 spans from 2400 MHz 
+and the last Wi-Fi channel (14 – not accepted at the ERC) is till 2495 MHz. that range is protected and 
+cannot be used by any other communication devices than the WiFi 802.11. 
+▪ Up to 100 mW EIRP 
+▪ Accepted standards: IEEE 802.11 b/g/n 
+▪ Rover can use only one 20 MHz channel 
+▪ SSID should be set to “ERC_TeamName”. 
+ 
+ 
+13 
+ 
+5 GHz Low Band (5150 - 5725 MHz) 
+Inside the band between 5150 and 5725MHz team can use two 40 MHz channels for Wireless Access Systems: 
+Wi-Fi and AirMax only. Up to 1  W EIRP power is permitted. Wider channel allocation (80 MHz) is possible only 
+after acquiring a permission from the organizers  by providing reasonable technical arguments  (official email 
+contact with teams@roverchallenge.eu is required). SSID should be set to “ERC_TeamName_(A/B)”.  At least 
+one of the two allocated channels will not be a DFS channel (if possible to set by the Team on their equipment). 
+ 
+5 GHz High Band (5725 - 5875 MHz) 
+Inside the band between 5725 and 5875 MHz team can use two 30 MHz channels for any communication 
+system - FPV etc. 
+ 
+ISM Bands 
+It is possible to use ISM bands within their limitations but Team must designate which rule is in compliance with 
+European regulations (LINK). The ERC does not accept ISM bands which are not accepted in Europe (e.g. 915 
+MHz). 
+Voice communication using a 500 mW PMR licensed transceiver is allowed on following channel frequencies 
+(MHz):  
+▪ 446,00625 
+▪ 446,01875 
+▪ 446,03125 
+▪ 446,04375 
+▪ 446,05625 
+▪ 446,06875 
+▪ 446,08125 - reserved for the organizer 
+▪ 446,09375 - reserved for the organizer 
+ 
+Mobile Networks 
+Communication via mobile networks – e.g. 4G, 5G, LTE is allowed. 
+ 
+Other Frequencies 
+Other frequencies are only allowed when a relevant license, valid in the territory of the venue, is presented by 
+the team. Those communication channels must be described in the documentation and agreed with the 
+organizer. 
+5.2.2 Other Communication Rules 
+▪ Before the competition, rovers and ground stations must be checked and accepted by the radio 
+communication judge during an Radio Frequency Check, ensuring that proper channels and power 
+limits have been set.  Team should come early enough before competition to make changes and 
+tests for the communication system. When long preparation occur, time slot for competition will 
+be missed. Team should bring 2x filled Radio Frequency Check Cards (RFCC) (see Appendix 4 – 
+RFCC) for every task, after successful Radio Frequency Check RFCC will be signed by RF judge. 
+These cards have to be provided to judge responsible for the task. Channels on different bands will 
+be assigned to the teams on the RF Check just before the competition. 
+▪ Channels on different bands will be assigned to the teams on the RF Check just before the 
+competition. 
+▪ During the competition, rovers and ground stations will be randomly tested. Unauthorized changes to 
+the RF configuration may result in immediate disqualification.  
+▪ The use of any communication channels for testing (at any time outside of the duration of the 
+competition attempt) must be consulted with the RF judge. Testing that can be conducted without RF 
+communication is preferred. The organizer will provide rules for the usage of RF links for the main parts 
+of the challenge venue. Requests to limit the usage of RF links can be expected and should be respected 
+throughout the entire duration of the event. 
+ 
+14 
+ 
+▪ For the whole duration of the challenge, the team is responsible for the legal use of the frequencies used 
+in the venue’s territory. The organizer can only help with frequency coordination and does not take 
+responsibility for any license violations, such as exceeding RF power, frequency band or area of use. 
+▪ It has to be highlighted that organizer is not responsible for any communication issues encountered 
+by the teams. Nevertheless the organizer will make all the reasonable steps to assign different 
+channels for competing teams as well as assure that other equipment does not use the same 
+ranges of frequencies, there may be some external interferences as multiple teams can be driving 
+in the Mars Yard or another Wi-Fi networks may be present in the vicinity of the Mars Yard.  
+▪ In case you would miss your time slot for execution of the tasks on the Mars Yard you need to take into 
+account that no alternative slot may be granted. In addition, no delays in starting ERC tasks (induced by 
+participants) will be allowed in order to minimise possibility of encountering interferences between the 
+teams (channels will be given to the teams based on their scheduled rides, multiple teams will be using 
+Mars Yard at the same time therefore in case there is any deviations with regards to the schedule, the 
+risk for interferences between the teams is higher. 
+▪ Team should deliver correct RF form at least two weeks before participating, to be  able to receive 
+points for RF Form.  
+▪ Difference between radio frequency form and real hardware during competition will result in negative 
+points for the Radio Frequency Form up to –20 points for each rule violation. 
+▪ Using unauthorized radio channel parameters (frequency, power, using additional channels etc) during 
+competition will result in negative points (-20 pts for each rule violation). 
+ 
+Use of drone in the Droning Sub-Task 
+▪ This task is to be performed inside the cage, therefore no regulations are applicable as drones will be 
+used in fully enclosed and safe environment. 
+▪ However, please take into account that if you decide to fly outside the competition and outside the 
+cage, e.g. to test something you need to follow the local PL/EU UAV flying rules – please check the local 
+rules for use of the drones in Poland. Also check website of the ULC (Civil Aviation Authority in Poland)). 
+Any flights performed outside of the drone cage are teams’ responsibility (consider local droning 
+rules and obtaining additional aircraft damage insurance – Aero Casco if you plan to perform any 
+test flights outside the droning cage). 
+▪ The accepted frequencies are as mentioned above in the section 5.2.1. Exception: RC controllers are 
+not forbidden in case of drones. 
+▪ Use of GPS/GNSS is allowed.  
+▪ The drone can be used only in the Droning Sub-Task. 
+▪ Before the competition drone weight is measured, and the Radio Frequency Form will be checked 
+by RF Judge Team. 
+ 
+ 
+15 
+ 
+6. Deliverables 
+6.1 General Information 
+Each team must provide technical documentation for their project. The project documentation is divided into 
+two parts called the Preliminary Report and the Final Report. Additionally, teams are required to deliver the video 
+(showing its rover’s and drone’s performance) and the Science Planning Report. All should present the required 
+content and quality of professional engineering documentation, therefore it is strongly recommended to have it 
+reviewed by experienced engineers. 
+All the documents are scored and counted as a part of the challenge final points (for details, see Appendix 2 – 
+Scoring). Scoring is designed to consider documentation as an aspect that can have a significant impact on the 
+final results, therefore it is important to deliver all documents in the best possible quality according to the 
+requirements listed below and on time according to the schedule (see Appendix 1 – Schedule). 
+6.2 Documentation 
+6.2.1 Preliminary Report 
+See the document template for more details. The template provides requirements associated with the 
+document, e.g. maximum number of pages, font size, margins etc. 
+6.2.2 Final Report 
+See the document template for more details. The template provides requirements associated with the 
+document, e.g. maximum number of pages, font size, margins etc. 
+6.2.3 Radio Frequency Form 
+Each team must fill in a Radio Frequency Form for every RF module used. It must be submitted via online forms 
+together with the Preliminary and the Final Report. If these documents are not submitted in the requested form, 
+the team will not be allowed to participate in the challenge. Radio Frequency Form can be found in Appendix 5 – 
+RF Form. 
+ 
+Preliminary RF Form is used to check compliance with the ERC rules. In case of any non-compliance, the team 
+will be requested to change communications.  Final RF Form provides an ultimate rover’s and drone’s 
+configuration, and it will be checked against the real configuration during the competition’s final. Any differences 
+will result in penalties.  
+ 
+Figure 1: Example of horizontal and vertical RF antenna radiation pattern for ground station 
+
+ 
+16 
+ 
+6.2.4 Science Planning Report 
+Each team needs to prepare a Science Planning Report and send it before the ERC finals (deadline is provided in 
+Appendix 1 – Schedule). Late delivery will be punished by proportionally subtracting 20% for every 24 hours after 
+the deadline. Information on detailed requirements are provided in the description of the Science Task. 
+ 
+DOCUMENTATION – GENERAL COMMENTS: 
+ 
+▪ Check document requirements (margins, font size, which pages are not included in the limit etc.)!  
+Refer to the attached templates! 
+▪ Include all the relevant information mentioned in the templates 
+▪ Try not to elaborate too much, sometimes a clear chart is better than a page full of text 
+ 
+ 
+6.3 Video 
+Each team should prepare promotional video material presenting their readiness for the competition. This 
+deliverable must be completed and submitted by the date presented in the challenge schedule (see Appendix 1 
+– Schedule). The material should be uploaded to one of the popular video service s (e.g. YouTube) and made 
+publicly available. A relevant link must be delivered to the organizer by the specified deadline.  
+The video should be a maximum of 10 minutes in length and present the rover’s and drone’s capability to take 
+part in the challenge, containing the following elements: 
+1) Introduction of team name, rover name, and the higher education institution name 
+2) Introduction of team and present teamwork 
+3) Introduction of the reasons for running in the challenge 
+4) Presentation of the remote control, mobility, design and safety systems for the rover 
+5) Presentation of the remote control, mobility, design and safety systems for the drone 
+6) Presentation of manipulator and other tools as well as ability to resolve the challenge tasks (manipulator, 
+drill, gripper etc.) 
+7) Quality and proper visual aesthetics for a video clip and presentation skills 
+Refer to Appendix 2 – Scoring for more details.  
+In special cases, the video may be the basis to request more details concerning the team’s readiness to 
+participate in the competition. Failure to present the requisite level of readiness may influence the extent to 
+which the team is allowed to participate in the trials. 
+ 
+VIDEO – GENERAL COMMENTS: 
+ 
+▪ Remember about the rover’s and drone’s motion sequence required in the video 
+▪ Check scoring, some of the moves shall be performed without cuts – in a single sequence recorded  
+▪ It is highly recommended to divide your video in sections covering elements 1-7. By implementing this 
+approach, you can assure that all required elements and motions will be noticed and scored by judges. 
+In case any of the elements appears in the wrong section it may be not counted in the final scoring. 
+ 
+ 
+6.4 Delivery of Documentation 
+Documents shall be delivered to Organiser using the following links: 
+ 
+17 
+ 
+No. Event Link Deadline 
+1 Preliminary Report https://forms.gle/QT7SsKjd917QEESV8   8th April 2026 
+23:59 CEST / EOD 
+ Preliminary RF Form https://forms.gle/xkzJCRfx79fyipjX9  8th April 2026 
+23:59 CEST / EOD 
+2 Video https://forms.gle/q8ybHawswrJ6H9ri7  31st May 2026 
+23:59 CEST / EOD 
+3 Final Report https://forms.gle/kvLZuCoeUx5Wm7Zb9  26th July 2026 
+23:59 CEST / EOD 
+ Final RF Form https://forms.gle/frUCWmuPhuYbsULCA  26th July 2026 
+23:59 CEST / EOD 
+4 Science Planning Report https://forms.gle/kCqBdSf1HtePEQy28  23rd August 2026 
+23:59 CEST / EOD 
+5 Droning Sub-Task Report https://forms.gle/SczzpirtDypA4uQb9  2nd September 2026 
+23:59 CEST / EOD 
+ Droning Sub-Task Photos https://forms.gle/55xneJsci7uSQHfh8  up to 2.5 hours after the ride on 
+the Mars Yard 
+6 Science Exploration / Final 
+Report https://forms.gle/SpvVA3vyrMACiEaD9  up to 2.5 hours after the ride on 
+the Mars Yard 
+7 Science AstroBio / Final 
+Report https://forms.gle/adm2dFXY2QXMMd8HA  up to 2.5 hours after the ride on 
+the Mars Yard 
+8 
+Presentation File 
+(PDF preferred, no videos 
+needed) 
+https://forms.gle/my8oZr4ymGZpLUfW8  5th September 2026 
+23:59 CEST / EOD 
+Table 2: ERC Deliverables with Links 
+ 
+ 
+ 
+18 
+ 
+7. ERC 2026 Tasks 
+7.1 General Information – the Story 
+PROLOGUE – MARTIAN ENVIRONMENT RECONNAISSANCE MISSION – AUTONOMOUS INTERIOR DATABASE 
+(MERMAID) 
+It is year 2050. The successful execution of ARTEMIS programme has proven that people are able to build bases 
+on the Moon. The next step is to perform the same activities on Mars. This task is far more demanding, especially 
+due to the distance between the Earth and the Mars. It results in no possibility for sending a fast rescue and 
+recovery missions. This is the reason why we must be sure that everything was done to assure the highest 
+possible level safety for the first astronauts that will reach the Red Planet.    
+The first people are going to land on the Red Planet in the next 5 years. Nevertheless, to minimize the remaining 
+risks a rover mission was successfully launched and landed on the surface of Mars, near the place that was 
+selected for the first astronaut’s landing. The rover descended from the lander using the customized egress 
+system and it is ready for operations. The plan established for this mission assumes execution of the following 
+tasks and sub-tasks: 
+Science Task (Sub-Tasks: Exploration, Surface/Deep Sampling, Astro-Bio) 
+ 
+This task consists of four sub-tasks. The purpose of this task is to recreate the typical scientific activities 
+performed by the rover on the surface of the Mars (exploration of the landing area, collection of surface and 
+deep samples, looking for biological markers and life). This part is performed just after the landing on the Red 
+Planet’s surface is exploration of the neighbourhood area. 
+ 
+Navigation Task (Sub-Tasks included: Traverse, Droning) 
+ 
+When all the planned Science tasks are finished the rover must find its way back to the MLMOD (Martian 
+Lander Module) to deliver the collected samples that will be sent back to Earth. Based on the current location 
+of the rover established with the data fro m satellite positioning system in the MMO (Medium Mars Orbit) the 
+track back to the lander was uploaded to the rover’s computer. Traverse must be performed in autonomous 
+mode due to limited bandwidth and delays encountered while controlling the rover manually from the Earth. 
+ 
+During the traverse activities (in some of the locations on the way and due to difficult terrain) it is also required 
+to use the drone that is part of the rover that has landed on the Mars. The main task of the drone is to fly over 
+the surface of Mars in order to support reconnaissance activities – i.e. to detect potential obstacles impeding 
+the movement of the rover, as well as to assess the value of the terrain in terms of future sampling activities. 
+The autonomously moving drone will have to find a sealed probe containing Martian material that is going to 
+be flown back to Earth for further investigation. Due to the likelihood of a sandstorm, it should also be possible 
+to temporarily land in a safe place and then continue the mission. The drone's destination will be MLMOD.  
+ 
+ 
+ 
+ 
+19 
+ 
+Maintenance Task  
+ 
+It was an unexpected plot twist. So far everything went nominal and when the rover arrived to the MLMOD it 
+was noticed that a device designed to analyse surface and subsurface humidity changes has failed  after the 
+recent dust storm. After unloading and setting the instrument on the ground, but before finally disconnecting 
+it from the lander's boom, a final test was carried out. It turned out that there were problems with the 
+instrument's power supply. The fault could not be repaired  remotely. Manual intervention is required. 
+Fortunately, one of the multi -purpose, autonomous Mars rovers was nearby. The rover can perform the 
+necessary operations on the instrument's control panel to repair the fault. The mission control centre has 
+already sent the instrument data to the operators and the rover. Now the success of the mission depends only 
+on the dexterity of the rover operators and the technical capabilities and reliability of their design. 
+ 
+Probing Task 
+ 
+Three years later as part of the final preparations to the manned mission a set of 5 small and fast rovers was 
+sent to the Mars to collect the probes that were left during the previous mission. The probes performed 
+environmental measurements that are crucial for the upcoming manned mission. 
+ 
+Presentation Task 
+ 
+After successful repairs to the MLMOD the collected samples were loaded on the lander and sent back to 
+Earth. Re-entry manoeuvres went nominally, the samples were successfully delivered to the surface of the 
+Earth and collected by the mission’s scientific team. Thorough analysis of the mission execution and the 
+collected samples allowed for several scientific publications that were presented during some of the most 
+important symposia and scientific conferences associated with the current and future trends r elated to 
+exploration of the Red Planet. These research activities cleared the way for the first manned mission to Mars, 
+that was finally launched in 2056.   
+ 
+ 
+All tasks and sub -tasks will be performed separately (i.e. Science Task: Exploration, Astro-Bio, Sampling ; 
+Navigation Task: Traverse, Maintenance). Each team will be assigned a time slot for execution of each task. 
+7.2 Field Trials 
+Field trials are organized as a benchmarking activity to compare the performance of teams in the resolution of 
+several tasks. Each task presents an independent set of problems to be solved and which are related to the 
+technologies required by future space robotics missions. 
+7.2.1 General 
+▪ The challenge tasks take place in front of an audience in the form of a public event 
+▪ Challenge attempts are independent. Teams are permitted to change their rover configuration between 
+tasks. A certain amount of time will be scheduled in between tasks to allow teams to modify, repair and 
+optimize their rovers 
+▪ The challenge jury consists of a number of specialists selected by the organizer. While judging the 
+challenge, the jury acts independently of the organizer but adheres to the schedule provided by the 
+organizer. In case of any unforeseen issues not specifie d in the competition rules, the jury board will 
+propose a solution 
+▪ The scoring of each task is independent and summarised in Appendix 2 – Scoring. 
+ 
+20 
+ 
+▪ Excellence shown in a particular task can be rewarded with additional points or multiplication factors 
+(see scoring details) 
+7.2.2 Schedule 
+▪ On the first day, teams should register at the challenge venue 
+▪ Additionally, for all teams, a warm-up day is planned for the day before the challenge. This day should be 
+used for calibration and other preparation activities. The organizer will give each team a limited time slot 
+within which teams are allowed to do any kind of measurements agreed with the organizer and based on 
+the final report specifications. Some task elements which are considered too detailed may be removed 
+for this day by the organizer. All dynamic elements may not be placed in their final locations. The organizer 
+cannot guarantee that the challenge area and its elements will be fully ready for this day 
+▪ On the last day of the challenge, total scores are calculated, winners are announced and prizes awarded 
+▪ A detailed schedule containing the exact time window for each task will be announced by the organizer 
+one week before the event in a preliminary version, with the final one being issued on the first day of the 
+competition 
+▪ Each team is obliged to respect the schedule. Any request for the modification of time slots etc. may be 
+rejected by the jury without any reason given 
+7.2.3 Challenge Site Details 
+▪ Each challenge task can be organized either indoors or outdoors. The outdoor challenge elements may 
+be placed under tents. Teams can expect typical interior furnishings, buildings, industrial installations 
+(metal pipes etc.) and natural objects (e.g. trees, bushes) in the vicinity of the challenge area 
+▪ For outdoor tasks, teams and their systems should be prepared for a range of weather conditions. 
+Temperatures between 10°C and 30°C, wind gusts, light drizzle, moderate rain showers, strong or weak 
+levels of sunlight are acceptable. This will be made based  on the schedule, other requests and the 
+potential impact on team’s performance. In case of major weather problems, the organizer will make all 
+reasonable efforts to reschedule/reorganise the trials within the available time slots and facilities. 
+However, it cannot be guaranteed that all of the trials will take place or will be organized strictly in 
+accordance with the provided specifications 
+▪ The organizer will provide each team with a workspace equipped with tables, chairs and 230V , 50Hz 
+power socket (‘type E’ , compatible with the ‘German type F’) 
+▪ The challenge location is separated from the Team area to avoid RF interference but the organizer cannot 
+guarantee that extra precautions will not be requested to avoid disruption of the challenge attempts 
+▪ The challenge field (i.e. Mars Yard - the place where terrain dependent tasks are held) will be artificially 
+landscaped specifically for the event. Sandy, non-cohesive soil, as well as hard, dry terrain, all at a variety 
+of slope angles and a large number of stones and boulders of different sizes should be expected. In case 
+of tasks which do not score locomotion aspects, a flat industrial surface (e.g. concrete) can also be 
+expected. 
+7.2.4 Operations 
+▪ The aim of the challenge is to demonstrate and evaluate the performance and robustness of the 
+proposed solutions. All tasks are designed to eliminate ‘luck factor’ from challenges. Therefore, teams 
+shall present high level of readiness for each task and pl atforms shall be equipped with all the devices 
+needed to solve all task elements. Rovers that are not equipped with all of the necessary elements may 
+not be allowed to attempt a certain task 
+▪ For the reasons stated above, teams can expect dynamic elements in the task description i.e. elements 
+that will be defined separately for each team at the beginning of the attempt (e.g. changing the start 
+position, different positions of task elements etc. ). In those cases, judges will propose a fair 
+modifications and the team cannot influence those decisions 
+▪ Teams will control their rovers from the independent locations. The control stations locations will be set 
+up by the organizer so that team members that are in control of the rover will not see their rover during 
+the tasks. 
+ 
+21 
+ 
+▪ Each team has about 20 -60 minutes (if a task description does not state otherwise) to complete each 
+task. This value will be fixed by the time of the final schedule release 
+▪ Some of the tasks may be realized during night, as part of  the schedule or as result of severe weather 
+conditions during the day 
+▪ Each team must designate two observers who are allowed to follow the rover at a safe distance to ensure 
+the safety of the machine and others around. Observers are allowed to communicate with the team from 
+the control area only through a judge, and only in one way - from control base to observer - and solely to 
+coordinate actions unrelated to task details like task reset, abort or unsafe event. No communication 
+during the normal execution of the task is allowed. The observers must be able to carry the rover, but they 
+should remain at a safe distance from the working machine and cannot interfere with any of the rover's 
+sensors (e.g. be visible on the image from the camera) during the realization of the task attempt 
+▪ During the tasks, only judges and observers can access the Mars Yard. No manual intervention is allowed, 
+except during events where the task rules state otherwise 
+▪ Any maintenance made by the team during tasks (any operations made by the team to the rover hardware 
+on the field) results in a restart of the task, going back to the start line and cancellation of all previously 
+earned points for this task (unless the ERC scoring states otherwise) 
+▪ The team can use video systems to tele-operate the rover if the task requirements do not state otherwise 
+▪ The team shall not use any voice/visual communication with the crew on the Mars Yard. Only the judge 
+can communicate between the Mars Yard and the control station 
+▪ The rover’s operator has the right to abort the task at any time by notifying the judge about it. The team 
+will receive the points gathered to the moment of notification according to the rules of the task 
+▪ Throughout the entire event, no rover or any other part of the system may do harm or interfere with the 
+systems of other teams. Any reports of such breaches will be investigated independently by the judges 
+or the organizer, and any violation of this rule can lead to disqualification from the challenge 
+▪ Any erratic behaviour of the rover or team members causing damage to the task’s infrastructure can 
+result in the immediate termination of the task attempt and cancellation of all the collected points 
+7.3 Tasks’ Definition  
+REMINDER: 
+It shall be taken into consideration that all tasks in the Mars Yard will be performed separately (i.e. 
+Science Task with Collection, Navigation, Maintenance). Each team will be assigned a time slot for 
+execution of each task. Changes of rover’s configuration are allowed (between the tasks). 
+ 
+7.3.1 Science Task 
+Science Task consists of the following sub-tasks: 
+▪ Scientific Exploration 
+▪ Surface Sampling 
+▪ Deep Sampling 
+▪ Astro-Bio 
+Descriptions of these sub-tasks are provided in this section. 
+7.3.1.1 Scientific Exploration Sub-Task 
+The aim of the Science Task is to demonstrate the understanding of performing scientific exploration in planetary 
+geology conditions. 
+The workflow of the Scientific Exploration Sub-Task is as follows:  
+1. Analysis of previous relevant work about the Martian region to be explored (literature review) 
+2. Careful analysis of provided data about the Mars Yard 
+ 
+22 
+ 
+3. Preparing a scientific exploration plan that considers the requirements of the data collection 
+4. Then, execution of the science exploration plan on the Mars Yard during the ERC field trials (Science Exploration 
+Sub-Task) 
+5. Data analysis  
+6. And finally, delivering a final report 
+The Scientific Exploration Sub-Task will be divided into three parts.  
+1. “Science: Regional Geology Analysis” is graded as a part of the “Final Report” that is part of the ERC finals  
+2. “Science Planning” that is required to be delivered about a week before the ERC finals 
+3. “Scientific Exploration” is to be submitted up to 2,5 hours after the ride through the Mars Yard 
+All reports shall be submitted as separate PDF files using the links listed in the section number 6.4. The 
+PDF file should be signed in the following format {[name of the team]_[  report_name]}. If you do not follow 
+this naming instruction, 5% points will be deducted from your final grade. Please note that the maximal 
+length of the answer to each question will be strictly enforced (material exceeding the allowed number of 
+characters will not be read and assessed). The Task documentation is scored according to Appendix 2 – Scoring. 
+Late submissions will be penalised (for part 1 and 2 every 24 hours means 20% points less, for the part 3 each 
+60 minutes delay is 20% less – penalties are proportional.  
+At some point after the finals, every team may request feedback with the Science Team after the ERC (delivered 
+remotely at a mutually convenient time). 
+Materials provided by the ERC organizer 
+You will be provided with the following data based on which you will prepare your reports: 
+1. Detailed instruction (below) 
+2. An approximate location of the Mars Yard on the surface of the Red Planet. Please note that the Mars Yard 
+does not copy any area of the real Mars but is an artificial model that represents the entire region. This 
+information should help you to better understand the geological context of geomorphological forms 
+present on the Mars Yard  
+3. Drone images of the Mars Yard along with the digital elevation model of the area that will be delivered at 
+the latest three weeks before the finals of ERC 
+4. A non-compulsory workshop that will introduce various topics helpful to accomplish Science Tasks (link: 
+https://www.youtube.com/live/QNf3-r8kX6g) 
+5. Support of our Science Team through the dedicated contact platform.  
+Required documentation: 
+Part 1: “Science: Regional Geology Analysis” 
+The goal is to select and shortly describe (in a form of a map and text) a best landing site on a pre-defined region 
+on Mars. Selected landing site must be geologically interesting (within a rover traverse up to 30 km), possible to 
+land there based on curr ently available techniques (appropriate atmospheric thickness, appropriate landing 
+area) and safe to access by a rover (local slopes inclination <20°, lack of numerous large boulders, reasonable 
+thermal conditions for a rover to survive winter).  To prepar e your analysis you should use Google Earth Pro 
+(choose Mars as a base planet) or, if you are more ambitious, JMars. The report should consist of two parts fitting 
+on two pages A4:  
+ 
+ 
+23 
+ 
+1) A composite map fitting on an A4 format and consisting of a 1) location map showing selected landing 
+site in a global scale, 2) a regional geological map (based on an appropriate map from the Astrogeology 
+Science Center publications) and 3) a close-up map based on CTX or Hirise photos, with a clearly marked 
+a) landing ellipse, b) planned rover path, c) three regions of interest 
+2) A report: up to 800 words long technical (why is it safe to land there) and scientific (why is it worth 
+landing there – especially in reference to the three regions of interest) justification of the selected area.  
+The region selected for the ERC2026 is within the deepest impact basin on Mars: Hellas Planitia ( +/- 100 km 
+from -36.409170° 89.679479°). You should expect an interaction between volcanic features (from nearby 
+Hadriacus Mons) and features related to past and contemporary ice presence in the subsurface. Our Mars Yard 
+will be roughly modelled on this geological area on Mars.  
+Suggested reading:  
+▪ https://pubs.usgs.gov/imap/i2694/  
+▪ https://www.sciencedirect.com/science/article/pii/S0169555X24003787?via%3Dihub  
+▪ https://www.sciencedirect.com/science/article/abs/pii/S0032063308002432  
+▪ https://www.sciencedirect.com/science/article/abs/pii/S0019103522004912?via%3Dihub  
+ 
+Part 2: “Science Planning”  
+The goal is to analyse the Mars Yard as a “landing site” and design a scientific mission in this area. 
+This task’s documentation is based on information (drone footage and digital elevation model) provided no later 
+than 3 weeks before the ERC finals, the report is due 1 week before ERC finals as a pdf file. Science Planning 
+report must contain detailed information on the topics listed below. 
+1. Geological Map of the Mars Yard including a coherent geological interpretation of the ‘landing site’ . 
+Outline of all geological features visible on the Mars Yard with a focus on what they are, how they were 
+formed, and what their relative ages are (assigned from the oldest to the youngest). The map should fit on 
+an A4 format of a page.  
+Preparing a good geological map of the area is the most important part of the scientific part of the Science 
+Task: without a good map you will not be able to obtain good grades from other tasks.  
+An example of a geological map: Geologic Map of Jezero Crater and the Nili Planum Region, Mars by V .Z. 
+Sun and K.M. Stack can be found here: https://pubs.er.usgs.gov/publication/sim3464  
+2. An exploration plan: Based on the prepared geologic map, and the understanding of geological development 
+of the area, you should prepare a detailed plan of scientific exploration and properly justify your decisions. This 
+section should be no longer than allocated number of characters (with spaces) and include assigned number 
+and type of figures. Longer descriptions WILL NOT BE READ, more than one (possibly composite) figure will not 
+be taken into account. 
+a) 1 st paragraph: stating a subject to be studied. e.g., Relative ages of Aeolian features present at the 
+landing site. (up to 500 characters with spaces) 
+b) 2 nd paragraph: explaining why we should know that. e.g., determining the geological history of the 
+landing site, and establishing when (and maybe why) dunes became immobilized. (up to 1000 characters 
+with spaces) 
+c) 3rd paragraph: a falsifiable hypothesis: e.g., an impact crater is younger than the dune located next to 
+it. (up to 500 characters with spaces). Wiki has a good article on what is a good hypothesis: 
+https://en.wikipedia.org/wiki/Hypothesis  You should particularly make sure your hypothesis is fulfilling 
+requirements of the Scientific Hypothesis as described in this article. Hypothesis should be related to 
+ 
+24 
+ 
+the geologic analysis present in your map, and cannot be ridiculously obvious like: "is this object a rock?" , 
+"is this dune made of sand?" . Every team may ask once (through a direct message through the selected 
+communication channel e.g., slack) if your hypothesis is too ridiculously obvious) 
+d) 4th paragraph + one A4 figure (pdf format): predictions that will test the hypothesis; what is expected to 
+be seen in the field, and how it will help the team sustain or overrule the hypothesis e.g., we will go to the 
+slope of the dune facing the crater and examine how material ejected from the crater interact s with the 
+dune. If we find ejected material on the dune’s surface, we will know that the crater is younger than the 
+dune → it therefore supports our hypothesis. If we will find that material ejected from the crater is covered 
+by the dune, we will know that the dune is younger than the crater → our hypothesis will be rejected. A 
+figure can be used to illustrate the expected results (up to 1500 characters with spaces) 
+e) Relevant scientific references that were appropriately cited in the text (do not cite Wikipedia or NASA 
+web pages – we want to see you read papers or book chapters). 
+Part 3: “Scientific Exploration” 
+The goal is to:  
+1. Verify the hypothesis stated in the Scientific Plan.  
+2. Observe the surroundings for potentially scientifically interesting objects that will be placed around the 
+Mars Yard (e.g., atypical rocks, meteorites, pieces of spacecraft, possible USO (Unexpected Standing 
+Objects).  
+ 
+Figure 2: Example of Scientific Exploration based on ERC 2024. Start from S1 point, exploration of the Mars Yard with discovery of 
+easter eggs and geological features, finally return to S1. 
+Deadline for submitting the report: up to 2.5 hours after completing the traverse  (refer to § 6.4 for the 
+delivery link). 
+Hypothesis verification:  
+Aim: an attempt to verify your hypothesis described in your Scientific Plan Report. We will judge you on the quality 
+of your data analysis against the hypothesis. It is fine to reject the hypothesis, it is also ok to determine that the 
+data was not sufficient to properly test the hypothesis (although in this case you should explain what else would 
+be needed to test it). Within your explanation you should include three annotated photographs from the rover 
+S1 
+ 
+25 
+ 
+showing geologic features that you discuss in the report. You should discuss how this new knowledge influences 
+the understanding of the geology of this area and modify the geological map appropriately. You should note the 
+location of your observations on t he geological map and update geological map including all new or modified 
+features (there will be some!!). Please make sure that the new/ changed features are clearly marked on the map.  
+USO: Unexpected Standing Objects (up to 3 objects):  during your traverse you should identify and describe 
+“unexpected objects” identified on the Mars Yard. When doing real science (on Earth and on other planetary 
+bodies) usually the most important science is related to finding new, unexpected things while looking for other 
+stuff. This is why it is crucial to pay attention to your surroundings while traversing Mars. Unexpected items can 
+include: a) rocks that are not similar to other rocks present on the Mars Yard – it may be an important ore for 
+future use,  b) signs of extra -terrestrial life (you never know – maybe you will find something), c) signs of 
+technological civilization (either human – related or not), and d) observations of any geological activity. You 
+should identify up to 3 objects and prepare: 1 ) a short description of the object and 2) an ad -hoc hypothesis 
+about the nature of this object, 3) an image of the object, and 4) it should include a map (drawn on the digital 
+elevation map provided to you by the Organiser) with your traverse and the loca tion of all found objects clearly 
+marked on your updated geological map. The description of each object should be no longer than 350 characters 
+(with spaces) plus one annotated photograph, and up to 3 objects will be graded. Do not afraid to be funny in 
+your descriptions – the judges will need some entertainment during grading. 
+The report should be no longer than 3000 characters (with spaces) and include no more than 3 
+figures/annotated photographs with proper descriptions (figure caption included in the character limit) + 
+an updated geological map. 
+7.3.1.2 Surface Sampling Sub-Task 
+The main goal of this sub-task is to collect surface samples of the Martian soil that will be sent back to Earth for 
+further analysis. Surface and Deep Sample Collection Sub-Tasks will be performed in the same time slot. 
+The task scenario is as follows: 
+1. Arrive to the sampling location 
+2. Take a photo before sampling is started 
+3. Perform sampling (regolith and rocks samples in case of surface sampling) 
+4. Place the collected sample/s in the onboard container 
+5. Measure weight of the collected sample/s 
+6. Take a photo after sampling is completed 
+7. Drive to the start/finish line 
+ 
+26 
+ 
+  
+Figure 3: Example of surface sampling based on ERC 2024. Start from S3 point, rocks sampling at SS#2, regolith collection at SS#1 
+and return to S3. 
+General requirements for the surface sampling are as follows: 
+1. The rover shall be equipped with a manipulation device that is able to pick up the surface samples from 
+the Mars Yard and place these in the on-board container 
+2. The rover shall be equipped with a container/s allowing for the stable transport of the collected material 
+over challenging terrain 
+3. The container/s shall keep the collected samples in a selected position and orientation, and it shall 
+prevent any movement 
+4. Regolith and rock samples (both!) must be collected by the rover. Both mass (>100g as a goal) and size 
+(in case of rocks the largest dimension >150mm as a goal) requirements are applicable to assure that 
+scientifically valid samples and enough material are transported back to Earth. 
+5. The collected samples (qty=2) must be further disposed in the onboard containers and transported to 
+the finish line (Martian Lander Module – MLMOD). 
+6. Weight of the samples must be measured by the onboard system of the rover. 
+7. Special tool or tools must be used to perform the tasks, e.g., grippers assembled on the robotic arm. 
+8. Weight and dimensions of the collected sample will be checked by judges at the finish line. 
+ 
+ 
+ 
+SS#1 
+Regolit
+S3 
+SS#2 
+Rocks 
+ 
+27 
+ 
+ 
+SURFACE SAMPLES COLLECTION PART – GENERAL COMMENTS: 
+ 
+▪ Surface and Deep Sampling Sub -Tasks will be performed in a single run and sequence (one after 
+another, sequence to be selected by teams) 
+▪ Sampling zones will be predefined by judges. 
+▪ Remember that in the collection part both surface and deep samples shall be collected! 
+▪ Remember that in the surface collection part both regolith and rock samples shall be collected! 
+▪ Remember about taking pictures before and after collecting samples  
+▪ Measure weight of the collected sample/s.  
+▪ Science Surface and Deep Sample Collection Sub-Tasks are designed to solely check rover’s ability 
+to perform collection of various samples. These samples are not part of the Scien tific Exploration 
+activities (shall not be included in the report as the sampling location is defined by the organizer). 
+In case your team want to include sample collection and results of in -situ analysis performed by the 
+rover it has to be performed again during the Scientific Exploration Sub-Task. 
+ 
+ 
+7.3.1.3 Deep Sampling Sub-Task 
+The main goal of this sub-task is to collect surface samples of the Martian soil that will be sent back to Earth for 
+further analysis. Surface and Deep Sample Collection Sub-Tasks will be performed in the same time slot. 
+The task scenario is as follows: 
+1. Arrive to the sampling location 
+2. Take a photo before sampling is started 
+3. Perform sampling (drilled-out core in case of deep sampling) 
+4. Place the collected sample/s in the onboard container 
+5. Measure weight of the collected sample/s 
+6. Take a photo after sampling is completed 
+7. Drive to the start/finish line 
+ 
+ 
+28 
+ 
+  
+Figure 4: Example of deep sampling based on ERC 2024. Start from S3 point, deep sampling at DS and return to S3. 
+General requirements for the deep sampling are as follows: 
+1. The rover shall be equipped with a deep sample collection device that is able to pick up the surface 
+sample from up to 30cm below the Mars Yard’s surface and place it in the on-board container 
+2. The rover shall be equipped with a container/s allowing for the stable transport of the collected material 
+over challenging terrain 
+3. The container/s shall keep the collected samples in a selected position and orientation and it shall 
+prevent any movement 
+4. Deep sample must be collected by the rover. Both mass (>100g as a goal) and depth (>300mm as a goal) 
+requirements are applicable to assure that scientifically valid samples and enough material are 
+transported back to Earth. 
+5. The collected material must be further disposed in the onboard container and transported to the finish 
+line (Martian Lander Module – MLMOD). 
+6. Weight of the sample must be measured by the onboard system of the rover. 
+7. Special tool or tools must be used to perform the tasks, e.g., drilling mechanism assembled on the 
+robotic arm (any workarounds, e.g., drilling using rover’s wheels) are prohibited. 
+8. Weight of the collected sample may be checked by judges at the finish line. Depth will be assessed based 
+on the coloured layers of material in the drilling location. An example of drilling site is shown in the figure 
+below. Moreover: 
+a. Max depth is not and will not be defined. Your task is to drill to at least 30cm. After that you can 
+expect up to a few cm of soft sand/soil 
+b. There will be a coloured layer of soil at each scored level 
+c. Colour codes are provided for judges to assess how deep did you manage to drill and if you really 
+drilled to that depth instead of drilling to the side 
+S3 
+DS 
+ 
+29 
+ 
+ 
+Figure 5: Example of drilling location (left) and foreseen colours of the layers for the Deep Sampling Sub-Task (right) 
+ 
+White / yellow sand > 30 cm 
+25 cm < blue sand < 30 cm 
+20 cm < purple sand < 25 cm 
+15 cm < red sand < 20 cm 
+Soil with sand < 15 cm 
+ 
+30 
+ 
+ 
+DEEP SAMPLES COLLECTION PART – GENERAL COMMENTS: 
+ 
+▪ Surface and Deep Sampling Sub -Tasks will be performed in a single run and sequence (one after 
+another, sequence to be selected by teams) 
+▪ Sampling zones will be predefined by judges. 
+▪ Remember that in the collection part both surface and deep samples shall be collected! 
+▪ Remember that in the deep sample collection part deep coloured sand samples shall be collected! 
+▪ Remember about taking pictures before and after collecting samples  
+▪ Measure weight of the collected sample/s. Depth from which the deep sample was collected has to 
+be measured too 
+▪ Science Surface and Deep Sample Collection Sub-Tasks are designed to solely check rover’s ability 
+to perform collection of various samples. These samples are not part of the Scien tific Exploration 
+activities (shall not be included in the report as the sampling location is defined by the organizer). 
+In case your team want to include sample collection and results of in -situ analysis performed by the 
+rover it has to be done during the Scientific Exploration Sub-Task. 
+▪ In case of deep sampling drilling out (without placement in some kind of preliminary container but 
+directly on the ground) and scooping the coloured layers with the robotic arm is forbidden. In this 
+case you would 'contaminate' the deep sampling location for the other teams with the coloured soil (it 
+will not be possible to scoop everything). In addition, if no coloured soil would be used (in a real life) 
+you cannot be sure that you have man aged to drill to the assumed depth - it would result in low 
+technical excellence of your mechanism. You can drill out deep sample material, keep it in the tube 
+around the drill and pour it in different location than deep sampling location (e.g. by simply c hanging 
+rotation direction of the drill). Then you will not contaminate this location, and you can scoop the 
+material. The perfect solution considers drilling out the sample and directly placing it into container 
+that is used to perform weight measurement onboard and then by judges when the finish line has been 
+reached. 
+ 
+ 
+ 
+ 
+31 
+ 
+7.3.1.4 Astro-Bio Sub-Task 
+The aim of the Science -Astrobiology Task is to demonstrate the understanding of performing scientific 
+exploration in planetary astro -biological conditions with accordance to the standards of Planetary 
+Protection protocols. The workflow of this task is as follows:  
+1. Teams are obligated to perform the pH -meter calibration. Organisers will provide pH standardized 
+calibration solutions which will be available up to 1h before the start of MY time. Calibration must be 
+done before the preparation time.  
+2. Planning mission based on the delivered basic Mars Yard information regarding the task (map of the Mars 
+Yard will be provided). 
+3. Decision where to go - decision will have to be made basing on the provided data regarding the conditions 
+and geophysical properties that will give the biggest chances to find life*** . Data sets will be handed over 
+to the teams 15min before the start of the MY time. 
+4. Identification of the sample source via QR code located in the task area. QR code will contain text data 
+(example: Site 1, Site 2, etc). 
+5. Performing the measurement of the pH of water taken from plastic containers (diameter 60 mm, height 
+75 mm) that will be half -buried within the designated area. The measurement must include performing 
+the control measurement on the known solution brought by the team, right before the start of MY time. 
+6. Performing a liquid sample acquisition from and transferring it to a secure container (not more than 
+100ml). 
+7. Safe and clean retrieving of the liquid sample from the rover. Organisers  will check if any leakage 
+occurred.  
+8. Organisers will hand over of the envelope with the further astro -biological data from the chosen 
+measurement site 
+9. Delivery of the final report from the task up to 3 hours after completion of your MY time allocated for this 
+task. This includes analysis of the astro-biological data (mentioned in point 3 and 8) and performing Thin 
+Layer Chromatography (TLC) on collected liquid samples.  
+*** rocks QR identifications will be randomized with respect to the measurement sites within the area of 
+the task 
+Materials Provided by the ERC Organizer  
+You will be provided with the following data based on which you will prepare your reports:  
+1. Detailed instruction (below)  
+2. At the time of the MY digital elevation map you will be informed which sector of the area will be designated 
+for the Science -Astrobiology task.  Containers with liquid of unknown pH are going to be standardized 
+plastic cups (diameter 60 mm, height 75 mm).  
+3. Set of pH reference solutions for pH-meter calibration with the standardized plastic cup (the same as on 
+MY) that will include non-corrosive solution of known pH 
+4. Envelope with the set of astro-biological and geophysical data for chosen measurement site (during the 
+task). 
+5. Tools and reagents necessary to perform Thin Liquid Chromatography: 
+a. Solvent (50ml) 
+b. Pipettes (1x) 
+c. Reaction chamber (1x) 
+d. TLC plate (1x) 
+6. A non-compulsory workshop that will introduce various topics helpful to accomplish Science Tasks 5. 
+Support of our Science Team through the dedicated contact platform   
+Description and Documentation of the Sub-Task:  
+ 
+32 
+ 
+The goal of this task is to perform an astro -biological analysis in Martian conditions and performing a liquid 
+sample collection with accordance to the standards of Planetary Protection protocols**** . Task will consist of 
+choosing one out of five measuring  sites, performing the measurement of pH of the solution located in the 
+measuring area and acquisition of liquid sample (up to 100ml) then storing it in a secure container in/on the rover. 
+The last part of the task will be performed outside of the Mars Yard. After the measurement attempt and retrieving 
+the sample (judges will check the cleanness of the container), the team will get an envelope with a set of astro-
+biological, geophysical and biochemical data from the chosen measurement site. Based on this information, the 
+team will have to include in the final report basic biological analysis of the virtual sample with a preliminary 
+evaluation potential of finding life in the chosen area. Parallely, the biochemical analysis (chromatographic 
+methods) will have to be performed. Results of the analysis of produced astro -biological data and 
+chromatography will have to be included in the report.  
+Part 1: Science – Choosing the Measurement Site 
+As the team will be ready to start the trail, judges will hand over the map of Mars with five locations marked.  
+These locations will correspond to the five measurement sites from which the team will have to pick one. All 
+measurement sites will be in the designated area of the Mars  Yard. Map will contain descriptions with a set of 
+basic geophysical data (mean temperature, pressure, humidity etc.). using this data team chooses the preferred 
+measuring site based on maximization of its astro -biological potential. Justification and reasoning that lead to 
+choosing a particular site will be graded in the final report.  
+ 
+ 
+33 
+ 
+Part 2: Science – Identification of the Measurement Site and Performing the Measurement 
+1. QR-Code Scanning 
+There will be the QR -code near to the chosen spot with plastic container. Team will need to scan a QR -
+code that will contain the identification number. Identification number needs to be sent to the judges 
+who will prepare the data necessary for further part of the challenge.   
+2. pH Measurement 
+Each site will resemble a rock with the container with a measuring solution. Team will need to perform a 
+pH measurement with the method of their choosing. Justification of the choice of the measurement 
+technique will have to be a part of the final report. Regarding the chosen method, calibration will need to 
+be performed within the presence of the judge at the same time as the “Part 1: Science: Choosing the 
+measurement site” Calibration solutions and reference pH-meter will be provided by ERC organizers. 
+3. Liquid Sample Acquisition 
+The team needs to take a sample of the liquid from the measurement site. The volume of the acquired 
+sample cannot exceed 100ml. The container with the sample must be designed in such a way to allow 
+safe and leakproof retrieving of the sample and at the sam e time keeping it sealed, not allowing for the 
+crosscontamination. This step will require following the safety protocols to prevent spillage, leakage 
+and/or coss-contamiantion. Judges will check if any leakage has occurred and if the container properly 
+isolates the sample from the outside environment. Information about following the safety protocols and 
+effectiveness of preventing the possible cross-contamination will have to be included in the report. 
+ 
+Figure 6: Example of Astro-Bio Sub-Task based on ERC 2024. Start from S7 point, selection of 1 of 5 measurement points and 
+performance of astro-biological measurements used for data analysis. Go back to the start line. Attention! Astro-Bio Sub-Task will 
+have a separate zone on Mars Yard in 2026 (as e.g. Sampling Sub-Tasks) 
+Part 3: Science – Analysis of the Astro-Biological Data  
+A) Data from the envelope 
+Based on the information from the envelope and pH-measurement team is obligated to perform basic analysis 
+of the data and draw conclusions regarding the possibility and probability of finding life in the chosen area. 
+Justification of these conclusions will have to consist of the reasoning behind the proper statement and 
+scientifically accurate arguments that will support this hypothesis.  
+The mentioned envelope will be handed to the team after reaching the site and the attempt of performing the pH 
+measurement. Information in the envelope will contain basic astro-biologically relevant characterisation of the 
+S7 
+A2 
+A1 
+A3 
+A4 
+A5 
+ 
+34 
+ 
+site. List will contain basic geophysical and astro-biological data gathered from the measurement site. Data will 
+include data like: 
+▪ mean temperature 
+▪ mean humidity 
+▪ mean pressure 
+▪ biochemical data (for example, presence and concentration of amino acids, DNA 
+B) Biochemical analysis of acquired liquid sample 
+Sample retrieved from the rover will have to be subjected to the biochemical analysis using chromatography. 
+The method of choosing is Thin Layer Chromatography (TLC). All necessary tools will be provided by organisers.  
+The TLC kit will contain: 
+▪ Solvent (50ml) 
+▪ Pipette (1x) 
+▪ Reaction chamber (1x) 
+▪ TLC plate (1x) 
+Data obtained from the chromatographic analysis with description of reasoning and possible conclusions will 
+have to be mentioned in the report. Picture of the TLC plate after Chromatography with marked significant 
+features must be added to the report. 
+ 
+ 
+ 
+35 
+ 
+Part 4: Science: Preparation of Final Report    
+Scientific part of the final report from this challenge will have to contain several points: 
+▪ Justification and reasoning that lead to choosing a particular measurement site 
+▪ Description of chosen pH measurement method and description of the calibration of pH measuring 
+method including the results. 
+▪ Results of the pH measurement with the results of the measurement of the control sample. 
+▪ Basic biological analysis of the virtual sample with preliminary evaluation potential of finding life in the 
+chosen area. 
+▪ Results, conclusions and reasoning from the biochemical analysis of collected liquid sample. 
+▪ Upper limit for this report is 1 500 characters. The report shall be delivered up to 3 hours after your 
+ride on the Mars Y ard (refer to §6.4 for the delivery link). 
+ 
+ 
+ASTRO-BIO SUB-TASK, GENERAL COMMENTS: 
+ 
+▪ Perform calibration of pH-meter 
+▪ Select one of 5 measurement locations . Remember that selection of this location needs to be 
+scientifically valid i.e. you have to explain why you foresee to find life in this location.  
+▪ Perform measurements (pH and QR scan) in the selected location 
+▪ Perform the liquid sample collection in a safe and clean manner. 
+▪ Going back to the start line is obligatory. 
+▪ Remember to perform scientifically correct analysis of the virtually collected data and biochemical 
+analysis of liquid samples in the report! 
+▪ Provide the AstroBio Final Report (length up to 1 500 characters) up to 3 hours after your ride on the 
+Mars Yard. 
+ 
+7.3.2 Navigation Task 
+7.3.2.1 Traverse Sub-Task 
+7.3.2.1.1 General Description 
+This task is intended to demonstrate the system’s ability for semi to fully autonomous traversal. The team shall 
+develop a project which gradually evolves into a fully autonomous system, traversing and gathering important 
+data on its way. At an early stage, the system can be decoupled with the operator in the loop, but all planning and 
+parameter estimation must be done by the computer system itself. This limits the operator to navigate the rover 
+blindly i.e., without access to visual or any other spatial information, however, any kind of data can be processed 
+on-board, providing the operator with support information about the localisation and state of the system. A smart 
+navigation strategy, sensor fusion and image data processing are essential in this task. 
+The teams will be given 20 minutes to perform Navigation: Traverse Sub-Task. The Teams will be given 15 minutes 
+before the Task start to prepare the rover for the traversal. This time is called the Preparation Phase. During most 
+of the Preparation Phase, full access to the Rover is granted, the Rover is put in a dedicated area of the Mars Yard 
+and the Teams are allowed to drive in the area, upload software, check the functionalities, etc. 
+7.3.2.1.2 Task Scenario 
+a) Send the rover the start position and waypoint information 
+b) Reach the planned waypoints (4) according to the Navigation Plan 
+c) Return rover to its start position 
+d) After the traverse, present techniques used, visualise the system data, compare the results with the plan 
+calculated at the beginning etc. 
+ 
+36 
+ 
+ 
+Figure 7: Example of Traverse Sub-Task based on ERC 2024. Start from S4 point, reaching points A-B-C-D and going back to the 
+start line. 
+7.3.2.1.3 General Requirements 
+a) Reach the 4 points defined by the judges in any chosen sequence (!) 
+b) Reach the defined point 5 (finish) as the last one (!) 
+c) Perform this task without video feedback in a fully autonomous mode in order to maximise the received 
+scores 
+d) Perform this task with video feedback to receive 50% of points (100% possible for autonomy if video feed-
+based autonomy is implemented and presented to judges – each team is responsible for presenting proof 
+of autonomy to judges)   
+e) GNSS navigation can be used (assumes existence of satellite constellation over Mars)! Scoring is 
+reduced to 80% in this case (100% possible for autonomy if GNSS -based autonomy or combination of 
+GNSS and landmarks -based autonomy is implemented and presented  to judges – each team is 
+responsible for presenting proof of autonomy to judges) 
+f) Summarising the abovementioned scoring: 
+ 
+S4 
+A 
+B 
+C 
+D 
+ 
+37 
+ 
+Case Description 
+Traverse 
+Points 
+Possible 
+Autonomy 
+Points 
+Possible 
+1. Video feed used 
+2. No autonomy implemented 50% 0% 
+1. Video feed used 
+2. Autonomy implemented 50% 100% 
+1. Video feed used 
+2. GNSS used 
+3. No autonomy implemented 
+50% 0% 
+1. Video feed used 
+2. GNSS used 
+3. Autonomy implemented 
+50% 100% 
+1. GNSS used 
+2. Video feed not used 
+3. No autonomy implemented 
+80% 0% 
+1. GNSS used 
+2. Video feed not used 
+3. Autonomy implemented 
+80% 100% 
+1. GNSS not used 
+2. Video feed not used 
+3. No autonomy implemented 
+100% 0% 
+1. GNSS not used 
+2. Video feed not used 
+3. Autonomy implemented 
+100% 100% 
+Table 3: ERC 2026 Navigation Traverse Factors 
+1. It does not matter what method do you use for autonomy - either you have it (=100%) or you do not 
+have it (=0%). 
+2. E.g. 'Video feed used' and 'GNSS used' means that you see video feed or current location of the 
+rover on the screen IN THE CONTROL STATION and based on this you perform rover's manoeuvres 
+by the operator. 
+3. In case you do not use this information in the control station, but the rover does it onboard in 
+autonomous mode (=WITHOUT SENDING IT TO THE CONTROL STATION / OPERATOR) you will get 
+100% of points for autonomy (if it really works).  
+Please be aware that both video feed and GNSS will not make autonomy implementation easy. You will 
+still have a lot of features (e.g. rocks, trenches, bumps, landmarks...) in the Mars Yard that will not be 
+visible in the 3D model. So going directly from Location #1 to Location #2 (assuming e.g. GNSS only) still 
+includes risk of the rover flipping over or being stuck. 
+g) ArUco markers placed on the MY can be used to navigate the rover  
+7.3.2.1.4 Additional Information 
+a) Initial rover position and orientation will be drawn at the beginning of each trial from a set of designated 
+locations and with a limited heading 
+b) The rover can be tele-operated, but only using the position and orientation estimate available. This data 
+can be visualised in any form (e.g. projecting the rover’s position on the arena map provided or a top view 
+picture etc.) 
+c) If the rover needs to be moved for any reason, it can only be moved back to the last successfully reached 
+waypoint and/or rotated towards any point or back to the starting point. In both cases, penalties for 
+manual intervention apply  
+d) Technical Reports should include a list of all sensors, together with detailed information about working 
+modes, ways they are used in the navigation task and how the rover will be operated. Teams are entitled 
+to consult all solutions with the judges before submission. Documentation will be verified by the judges 
+and in case of any doubts, the Team may be asked to reconfigure devices and/or their control strategy. 
+ 
+38 
+ 
+Any difference between the approved configuration and the one used during the challenge can lead to 
+disqualification (0 points for this task) 
+Task arena: 
+▪ Final map with grid coordinates and POIs (Point Of Interest) will be provided on the warm -up day, if 
+not agreed otherwise 
+▪ Two types of landmarks are foreseen: natural landmarks which are elements of the landscape placed 
+on the map, e.g. craters, small embankments, hills and artificial landmarks, e.g. artificial points for 
+localisation purposes. Artificial landmarks can contai n characteristic hi -visibility labels, unique 
+geometric figures, alphanumeric signs or an AR/QR tag matching a POI label on the map; An example 
+landmark (A4 size) design using an ArUco marker is presented below: 
+ 
+Figure 8: Example of marker 
+▪ The artificial landmarks will be visible for cameras from different directions on a field (each landmark 
+has 4 sides with identical faces) and will have a physical base that can be detected by proximity/range 
+sensors (e.g. placed on an element of infrastructure or natural landmark) 
+▪ At least two landmarks will be visible from the starting point 
+▪ It must be taken into account that some of the landmarks may be obscured by terrain or other objects 
+during a traverse 
+▪ The team cannot place any additional passive landmarks or active beacons on the challenge field 
+outside the starting area, but such elements can be deployed using the rover during the trial. All 
+landmarks must be documented in the technical reports and pre sented for approval at least 10 
+working days before the submission of the final documentation. This equipment may be subject to 
+negotiation, so teams should leave enough time to redesign/modify it in case of comments/rejection 
+by the jury. Such equipment must comply with the other rules of the competition e.g. if active radio 
+beacons are used, they must be compliant with the radio communication rules (see Radio 
+Communication section) and described in RF form 
+e) The rover can be stopped and moved/rotated by team members when it is stuck or in case of any other 
+technical problems. A judge shall be informed before any action is undertaken. 
+f) Details of the task, such as exact appearance of landmarks, location, map format, allowed custom 
+landmarks and beacon types, etc. will be discussed with the teams and presented during the preliminary 
+design phase in the rules. Teams are encouraged to initiate and actively participate in these discussions 
+g) Description of Landmarks – dimensions of landmarks are shown in the figure below. 
+
+ 
+39 
+ 
+ 
+Figure 9: Dimensions of landmarks 
+Each artificial landmark face consists of: 
+▪ A white background of at least 210x297mm (A4 size) 
+▪ A landmark number indicator located in a 150x70mm (+-2mm) rectangle 
+▪ A marker square corresponding to the landmark number, with dimensions of 150x150mm (+-
+2mm) and at least 30mm white margin on each side, grid size of the tag is 5x5 
+Each artificial landmark pole consists of: 
+▪ A box with 4 landmark faces and dimensions of 250x250x310mm (+-5mm) 
+▪ A wooden pole that elevates the landmark box above the ground (according to the drawing) 
+Each landmark’s coordinates are counted from an artificial point located in the landmark’s pole axis – on 
+a height of the landmark ARTag’s centre point. 
+For the list of ArUco markers – please refer to the following generator. 
+The size 5x5 library ArUco markers (not original library) will be used (the final list to be confirmed in the 
+Update Report #3 ). Markers ID No. 51 -64 from the abovementioned generator are assumed at the 
+moment.  
+ 
+Figure 10: ArUco markers to be used on landmarks 
+
+ 
+40 
+ 
+7.3.2.2 Droning Sub-Task 
+7.3.2.2.1 General Description 
+This task is intended to demonstrate the drone's ability to perform automated mission with focus on reliable and 
+repeatable performance.  
+Additionally, before performing the mission the drone will go through a preflight check to test the implementation 
+of crucial safety features described in a later section.  The drone must pass all of the checks to be allowed to 
+perform the task. To ensure the procedure goes smoothly teams should familiarize themselves with description 
+of the procedure provided in Appendix 6 – Preflight Check Description. 
+The mission consists of lift-off, detecting the landing spot and precision landing at the landing spot. The mission 
+is to be repeated 3 times. Each time the position of the landing spot will be randomized within  
+3 meters radius around the lift-off spot. 
+Teams can receive additional points for detecting and estimating positions of 3 probes scattered within  
+the 3 meters radius around the lift -off spot (5 points per detection in each of the 3 missions for a total of 45 
+points).  The position of the probes will remain unchanged between the 3 missions, but detections in each of the 
+missions are scored individually. For details regarding the probes refer to Probing Task description. 
+Teams can also receive additional points by preparing and using their own landing platform that can be attached 
+to their rover. The platform doesn't have to be attached to the rover when performing this task, but teams must 
+prove that the platform can be attached to the rover. The platform can't have a surface larger than a disc of radius 
+0.5 m. The platform does not have to be using an ArUco marker. Teams can receive 15 points for preparing their 
+own landing platform and 15 points for each successful landing on it (up to a total of 45 points). 
+Teams must also submit a short Droning Sub-Task Report outlining solutions implemented in their drone. Details 
+of the contents of the report are described inside the template, which can be found alongside templates of other 
+reports. The report should be no longer than 2 pages of text (excluding images etc.). The reports shall be delivered 
+as mentioned in the section §6.4. 
+Image processing / object detection and high-level logic / decision-making are required to be implemented using 
+MATLAB/Simulink (software will be available for the teams). This task is governed by ONT (Oprogramowanie 
+Naukowo-Techniczne) – partner of the ERC and main distributor of MathWorks products in Poland. ONT plans to 
+organize webinars for teams in order to introduce them to software and toolboxes that shall be used for this task. 
+They will also serve as technical point of contact (mainly on the ERC’s Slack). 
+7.3.2.2.2 Preflight Check of Safety Features 
+During the preflight check teams must present the implementation of the following features, in order: 
+▪ Operator must have connection and real time feedback from the drone, with view on the critical telemetry 
+flight parameters as well as video feed 
+▪ Drone operator must have the ability to switch to manual / remote control mode on demand (requested 
+by Jury) 
+▪ Drone must be able to automatically maintain stability mid-air 
+▪ Drone operator must have the ability to initialize automatic landing on demand (whenever requested by 
+Jury) 
+▪ Drone must have implemented fail safe mechanisms in case of: 
+✓ Losing connection with remote control and ground station 
+✓ Battery/power loss, positioning system glitch 
+▪ Operator must set the polygon inclusion geofencing for the competition area The geofencing area doesn't 
+have to be precise. Make it big enough to avoid false triggers. The most important is to show that you are 
+able to set geofencing for your drone. 
+ 
+41 
+ 
+7.3.2.2.3 Additional Information 
+▪ Drones must be assembled by teams (no COTS drones allowed). 
+▪ Each team has 15 minutes to prepare to the task (outside the cage) and 30 minutes to execute the task. 
+▪ Mission is to be performed only in automated mode. Any manual interventions during the flight will be 
+penalized. 
+▪ After landing the drone will be manually placed back at the lift-off spot. 
+▪ The size of the cage is 10 x 10 x 4 m. 
+▪ The effective area of competition is a disc with a radius of 3 m in the middle of the cage. 
+▪ The lift-off spot is a 1 x 1 m square in the middle of the cage. 
+▪ The landing target provided by the organizers is a disc with a radius of 0.5 m. 
+▪ Teams may also prepare their own landing targets attachable to their rover, but its size must be confined 
+within a disc with a radius of 0.5 m. 
+▪ The lift -off spot and the landing target will be marked with an ArUco marker from the ArUco original 
+library. The lift-off spot will us marker ID 101 and the landing spot will use marker ID 102. The markers 
+size will be 15 x 15 cm. 
+▪ The landing is considered as successful if any part of the drone is touching the landing target. 
+▪ The area of competition will be virtually divided into 1 x 1 m sectors. The probe detection system must 
+point to locations of the probes using IDs of those sectors as shown on the diagram below. As an 
+example, sector A2 covers coordinates (0 m; 0.5 m) to (0.5 m; 1 m), D1 covers (-1.5 m; 0 m) to (-1 m; 0.5 
+m) etc. 
+ 
+ 
+Figure 11: ERC 2026 Droning Sub-Task – Sectors 
+ 
+
+ 
+42 
+ 
+ 
+Figure 12: ERC 2026 Droning Sub-Task plan 
+7.3.3 Maintenance Task 
+7.3.3.1 General Description 
+The task is intended to demonstrate the ability of rovers to interact with a panel primarily designed for human 
+use. The Team shall use the rover’s robotic arm to set or rotate switches to required positions, handle different 
+kinds of elements (light plastic plug or heavy metal bar) and gather important feedback. 
+7.3.3.2 Technology Priorities 
+a) Task automation 
+▪ Automatic element detection (spatial parameters, possible actions) 
+▪ Automatic rover or end-effector approach 
+▪ Automatic handling 
+b) Teleoperation interface 
+▪ Situational awareness (vision, parameters presentation, display ergonomics) 
+▪ Feedback (presentation of feedback measures, force-feedback/control interfaces) 
+▪ Ergonomics of the operator’s interface 
+c) Robotic arm performance 
+▪ Tool’s relevance for a specific operation 
+▪ Operation robustness (flexibility, dexterity) 
+▪ Operation accuracy and quality 
+7.3.3.3 Task Scenario (Operations) 
+1. Set the main switch to the ON position as the first operation. 
+2. Set four switches from the group of lever switches. 
+3. Turn three of the five rotary switches. 
+4. Insert the plug into one of the two sockets (IEC320 C14 type). 
+5. Turn both rotary power switches (the first one is to power the cable connection, and the second one is 
+to power the electromagnet). 
+
+ 
+43 
+ 
+6. Place the plate on the electromagnet. 
+ 
+ 
+Figure 13: Example of Maintenance Task based on ERC 2024. Start from S6 point, reaching the panel and perform manipulation 
+sequence. 
+7.3.3.4 Task Details 
+▪ The time in the field for this task is limited to 30 minutes. 
+▪ At least 15 minutes of preparation time is given prior to execution of the task. 
+▪ The workplace will be located at an angled side of a lander’s module. 
+▪ At the workplace there will be a flat panel, 330mm wide and 450mm tall, divided into sections with 
+specific elements (ArUco tags, indicators, switches, sockets). 
+▪ Switches and other controls on the panel will be industrial grade elements. Switches can be either lever 
+or rotational type. 
+▪ All switches should be manipulated one by one - actuation of more than one in a single move will not be 
+scored. 
+▪ Some of the panel elements can be sensitive to forces and torques exceeding operational limits. Those 
+elements should not be damaged during operations. 
+▪ Dimensions provided in the description may slightly change. 
+7.3.3.5 Expected Results 
+▪ The MAIN switch is set to the ON position as the first operation (panel powered up). 
+▪ Four other switches are set to required positions. 
+▪ Three rotary switches are turned to required positions. 
+▪ Plug is inserted into one of the two sockets (cable connection established). 
+▪ The first rotary power switch is turned to the ON position (current for the cable connection supplied). 
+▪ The second rotary power switch is turned to the ON position (electromagnet powered up). 
+▪ The plate is held by the electromagnet. 
+▪ All of the five indicators are lit up. 
+▪ No panel damage is incurred (control elements, connectors, covers etc.). 
+▪ Task automation efforts and results are presented to the judge. 
+7.3.3.6 Additional Information 
+▪ Remember about the required weight and radio check before coming to the Maintenance starting point! 
+Consider additional 20-30 minutes before, as checking will have to be done in the Team Zone before 
+arrival to the Mars Yard. 
+S6 
+Maintenance 
+Zone 
+ 
+44 
+ 
+▪ Arrive early, you will have 15 minutes to prepare for the task (during this time you have to establish 
+communication with the rover and place it on the start line). 
+▪ Judge will explain you the task during the preparation phase. 
+▪ You have 30 minutes to complete the task. 
+▪ Hardware changes/repairs done on the rover during the task will be penalised. No penalties will be 
+given for the safety actions, e.g. when rover is going to flip over on the crater’s edge and you need to 
+catch it in order to avoid damages. 
+▪ Remember about preparing the strategy for each task. What to do in case of any problems? How long 
+should we try to perform certain action before giving up and moving to the next one? Planning in 
+advance will save you time and allow to score more efficiently. 
+ 
+Figure 14: ERC 2026 Maintenance Task panel. The front workspace panel is 330 mm wide and 450 mm tall. Note: the placement of 
+specific elements is only illustratory here and is subject to change. 
+7.3.4 Probing Task 
+7.3.4.1 General Description 
+The task is intended to demonstrate the ability of rovers to perform fast samples or probes collection for scientific 
+reasons and delivery of the collected equipment to the module that has to deliver those back to Earth for 
+examination. It is based on e.g. MSR – Mars Sample Return (NASA, mission that was assumed to go to Mars and 
+collect samples from NASA’s Perseverance rover) or SFR – Sample Fetch Rover (ESA).  
+7.3.4.2 Task Scenario 
+a) Start driving from 1 of 6 starting locations. 
+b) Find three probes somewhere on the Mars Yard. Store each probe on the rover in its onboard container. 
+c) Go to the finish line when 3 probes are collected. 
+
+ 
+45 
+ 
+ 
+Figure 15: Example of Probing Task based on ERC 2024. Start from S4 point (or another location), collecting 3 probes and going 
+back to the start line. 
+7.3.4.3 General Requirements 
+a) Colour of the probes: yellow-green 
+b) Probes are made of aluminium. Dimensions of the probes are provided below 
+ 
+Figure 16: Dimensions of the probes 
+7.3.4.4 Additional Information 
+a) Perform this task as fast as possible. The final scores will depend on the task’s completion time as follows 
+▪ Teams that complete this task in less than 7:30 minutes get 100% of the collected points. 
+▪ Teams that complete this task in more than 7:30 and less than 12:30 minutes get 90% of the 
+collected points. 
+▪ Teams that complete this task in more than 12:30 and less than 17:30 minutes get 80% of the 
+collected points. 
+▪ Teams that complete this task in more than 17:30 and less than 22:30 minutes get 70% of the 
+collected points. 
+▪ Teams that complete this task in more than 22:30 minutes get 60% of the collected points. 
+b) Guidance on collisions avoidance and ‘ownership’ of the probes will be provided before the competition 
+(Briefing for the Teams). As a baseline judges will have the final decision on which team gets to the certain 
+probe first. 
+S4 
+A 
+B 
+C 
+ 
+46 
+ 
+7.3.5 Presentation Task 
+7.3.5.1 General Description 
+The Presentation Task lets teams introduce themselves and present their projects. Judges expect to learn how 
+the team worked on the project, what kind of technical solutions are implemented in the rover or in the software, 
+what was the approach of the team  to solve tasks during the competition (e.g. electro -mechanical design, 
+algorithms), and how the team solved problems and issues which occurred during development (lessons learnt). 
+The team should also be prepared for a Q&A session and discussions with judges. The last part is also important 
+for the teams as the organizer would like to focus more on mentoring and development of the team members. 
+Therefore, we would like to encourage you to prepare not only for the presentation part but also for the 
+discussion. Questions from the team members are more than welcome!  
+7.3.5.2 Goals 
+a) Introduce the team (expertise and experience) and project 
+b) Present organisational structure, management methods and work-flow 
+c) Present an engineering approach 
+d) Present the technical design 
+e) Present the scientific project design 
+f) Present the approach selected and realised in each task  
+g) Present difficulties which occurred, methods applied to solve them as well as lessons learnt 
+h) Present elements designed to fulfil the rest of the trial tasks 
+i) Present Team’s outreach and PR activities related to the ERC (posts, events etc.) 
+j) Present well-considered and realistic ideas for potential applications and future development of the 
+designed rover or its subsystems (spin-off/spin-out ideas) 
+7.3.5.3 General Requirements 
+a) The time for the presentation is limited to 20 minutes 
+b) The Q&A and discussion session takes up to 20 minutes 
+c) The team can use a projector provided by the Organiser (HDMI connector as a standard, other 
+connectors may not be available therefore please consider bringing those as an essential to present)  
+d) The Organiser does not provide computers 
+e) The presentation as well as Q&A and discussion session must be given in English 
+f) The presentation can be done in any format and creativity is welcome 
+g) One member of the Team may be selected to present, however, all Team Members shall attend the 
+presentation as well as the Q&A and discussion sessions 
+7.3.5.4 Expected Results 
+a) Demonstration of Team’s presentation skills 
+b) Detailed information on technical key drivers which influenced the Team to build this design, 
+engineering approach, system breakdown structure, management, difficulties, solutions and lessons 
+learnt 
+c) Scientific/engineering inventions, design propositions 
+d) Spin-off, spin-out/in ideas and opportunities 
+e) Team outreach and promotion of the ERC 
+▪ Discussion with Judges focused on the presented design or approach, problems encountered, 
+possibilities to further develop the project or certain skills of the Team Members 
+▪ Teams should feel more than welcome to provide additional topics that they would like to 
+discuss. One of the main assumptions of this task is to provide as much mentoring support to 
+the Teams during the ERC finals.   
+ 
+ 
+47 
+ 
+ 
+ 
+ 
+PRESENTATION TASK – GENERAL COMMENTS: 
+ 
+▪ Arrive on time, you will have up to 5 minutes to prepare for the task and solve the potential technical 
+issues related to sharing the screen or the Internet connection 
+ 
+▪ Do not select only one representative for the Presentation Task. We want to meet and talk to the team 
+(or at least as many members as it is possible) 
+ 
+▪ Do not underappreciate this task. Presentation skills will be essential in your professional career. 
+Prepare for this task in advance 
+ 
+▪ Judges will explain you the task during the preparation phase 
+ 
+▪ You have 20 minutes to complete the presentation 
+ 
+▪ In the presentation please especially remember about addressing the following topics (we have noticed 
+in the recent editions of the ERC that teams forget about those or do not have idea what to present): 
+✓ Explanation of outreach part. Describe the activities that increase your and ERC’s visibility (e.g. 
+posts on Facebook, articles in newspapers, events/workshops that you have organised etc.). 
+Also include PR activities related to the ERC (posts, events etc.  – at least 5 posts including 
+#ERC2026 hashtag will be required and scored) 
+✓ Explanation of spin-off/out part. Come up with ideas for further commercialisation of your work. 
+Try to think outside the box and consider more specific possibilities, e.g. commercialisation of 
+a small part (e.g. software, gripper, camera etc.) of the rove r instead of the complete rover 
+(however it is also a possibility but not the only one) 
+ 
+▪ Use the 20-minutes slot for the discussion with the judges. Do not be afraid, this time is specially for 
+you than for us. You can discuss any topic with us (considering that we have some knowledge in a 
+certain area, if not we will try to help you and lead you to the person who has experience in it). Do not 
+hesitate to ask any questions, even the stupid ones  
+ 
+ 
+48 
+ 
+7.4 Time Available for Tasks and Locations 
+The table below summarizes time available for preparation and completion of each task. Preparation time is 
+granted to each team before starting the task. The table below also provides locations of the tasks and the 
+number of teams that compete in this task  at the same time (e.g. need to share Mars Yard and avoid collisions 
+with other teams). 
+No. Task: Sub-Task Preparation 
+time [min] 
+Execution 
+time [min] Location 
+Max number 
+of teams 
+competing at 
+the same 
+time 
+1.1 Science: Exploration 15 20 Mars Yard – Main Zone 3 
+1.2 Science: Surface 
+Sampling 15 30 Mars Yard – Sampling Zone 1 
+1.3 Science: Deep Sampling 
+1.4 Science: Astro-Bio 15 20 Mars Yard – Astro-Bio Zone 1 
+2.1 Navigation: Traverse 15 20 Mars Yard – Main Zone 1 
+2.2 Navigation: Droning 15 30 Drone Cage (not in the Mars Yard) 1 
+3.1 Maintenance 15 30 Mars Yard – Maintenance Zone 1 
+4.1 Probing 15 30 Mars Yard – Main Zone 6 
+5.1 Presentation 5 
+20 
+(presentation) 
+20 (discussion) 
+Presentation Room (2 rooms are 
+foreseen) 
+2 
+(but in 
+different 
+presentation 
+rooms) 
+Table 4: Time allocations, locations and number of teams competing in each task 
+ 
+ 
+49 
+ 
+Appendix 1 – Schedule 
+The table below presents the schedule of the ERC 202 6. If not stated otherwise, the below dates mean end of 
+day (23:59) Warsaw, Poland time (UTC+2 / CEST time starting on 29th March 2026). 
+Event Date 
+Rules Publication / Registration Start 20th February 2026 
+Registration End  
+ 
+Deliverables: Registration Form. 
+15th March 2026 
+Preliminary Design Review (PDR) 
+ 
+Deliverables: 
+▪ Preliminary Report, including e.g. 
+1. Updated MoC / Verification Control Document (VCD) 
+2. Preliminary Test Plan (TP) 
+8th April 2026 
+Video Material Delivery 31st May 2026 
+Qualification Announcement 21st June 2026 
+Critical Design Review (CDR) 
+ 
+Deliverables: 
+▪ Final Report, including e.g. 
+1. Final MoC / VCD 
+2. Final TP 
+3. RFF (Radio Frequency Form) 
+26th July 2026 
+Update Report #3 (incl. details about Mars Yard) 13th August 2026  
+Exploration Task Readiness Review (E-TRR) 
+ 
+Deliverables: 
+▪ Science Planning Report 
+23rd August 2026 
+Competitions - ERC final event 4th – 6th September 2026 
+   Registration and warm up day for teams 3rd September 2026 
+   Competitions – ERC tasks 4th – 6th September 2026 
+   Closing ceremony 6th September 2026 
+Table 5: ERC 2026 Schedule 
+Event Date 
+Q&A Session #1 22nd March 2026 
+Q&A Session #2 15th April 2026 
+Qualification Announcement 28th June 2026 
+Q&A Session #3 19th July 2026 
+Q&A Session #4 (pre-ERC briefing) 3rd September 2026 
+(face to face in Krakow) 
+Table 6: Q&A Sessions Schedule 
+ 
+50 
+ 
+Appendix 2 – Scoring 
+The scoring of the competition is designed to reflect the technology priorities identified as well as gaps in the 
+designs from previous editions. It is intended to motivate teams and, as a result, help the team develop the 
+relevant expertise and provide missing solutions to previous challenges.  
+ 
+Some flexibility in scoring is left to reflect many aspects that cannot be covered by rules like the quality of 
+solutions, its robustness and performance, but judges will be equipped with detailed guidelines to make the 
+scoring as objective as possible. 
+ 
+The following scoring for tasks is considered: 
+ 
+▪ Documentation (400 points max), including: 
+1. Preliminary Report (150 points max) 
+2. Video Material (100 points max) 
+3. Final Report (150 points max) 
+▪ Science Task (1000 points max), including: 
+1. Exploration (300 points max) 
+2. Surface Sampling (200 points max) 
+3. Deep Sampling (200 points max) 
+4. Astro-Bio (300 points max) 
+▪ Navigation Task (600 points max), including: 
+1. Traverse Task (300 points max) 
+2. Droning Task (300 points max) 
+▪ Maintenance Task (300 points max) 
+▪ Probing Task (200 points max) 
+▪ Presentation Task (300 points max) 
+▪ Rover’s and Drone’s Weight (200 points max, 6x30 + 1x20 pts)* 
+ 
+*(6+1) rover + drone rides/flights in total includes: Exploration (30 pts), Surface and Deep Sampling (30 pts 
+– both are performed in a single run), Astro-Bio (30 pts), Traverse (30 pts), Droning (20pts), Maintenance (30 
+pts), Probing (30 pts). 
+ 
+The total number of points in the ERC on-site formula is 3000. 
+See the attached file: Appendix_2-Scoring. 
+Appendix 3 – Requirements 
+See the attached file: [Appendix 3] Requirements Rev.1.xlsx.  
+ 
+Please fill the table with details relevant for your rover as it is explained in the Preliminary Report’s template.  
+ 
+The updated table shall be delivered in the *.xlsx format as a separate file with name the same as the PDF file 
+with Preliminary Report or Final Report. Naming is as follows: 
+▪ TeamName_PreRep.pdf / TeamName_PreRep.xlsx 
+▪ TeamName_FinRep.pdf / TeamName_FinRep.xlsx 
+ 
+This attachment is not considered for the total length of the document (refer to document templates for more 
+details on the document requirements). 
+ 
+ 
+ 
+51 
+ 
+Appendix 4 – RFCC 
+See the attached file: [Appendix 4] RFCC Rev.1.xlsx.  
+ 
+Appendix 5 – RF Form 
+See the attached file: [Appendix 5] RF Form Rev.1.xlsx.  
+ 
+Appendix 6 – Preflight Check Description 
+Before a team is allowed to attempt the Droning Sub -Task, they must successfully pass the pre -flight check of 
+all the features listed in section " 7.3.2.2.2 Preflight Check of Safety Features ". This attachment contains 
+description of standard course of actions of the pre-flight check. It is meant to serve as a guide for participating 
+teams to prepare to ensure the check is conducted in a timely manner. 
+ 
+1. The drone may already be placed in the middle of the cage. 
+2. The team shall present their configuration of the geofence. 
+3. The team shall show/explain their implementation of fail-safe mechanisms. 
+4. The remaining features are going to be presented in action. Drone's pilot should always announce their 
+actions ahead of time. If at any point the drone gets too close to the edge of the cage, pilot shall intervene 
+to move the drone away from the net or att empt to perform emergency landing. While performing this 
+test flight the team shall show Jury how they receive live telemetry readings and video feed. 
+5. First, drone's pilot shall manually (remotely) pick the drone off the ground and move around to 
+demonstrate that the drone is capable of stable operation. 
+6. Then, on Jury's instruction, pilot shall either switch drone into automated mode or land the drone and 
+start it up in automated mode. The automated mode may either be the program used to execute the 
+Droning Task or a different automated flight mode prepared for the purpose of the pre-flight check. 
+7. On Jury's instruction, pilot shall take manual (remote) control over the drone. 
+8. On Jury's confirmation, pilot may land the drone, and team may prepare the drone for the task. 
+ 
+ 
+ 
+ 
+ 
+52 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+END OF THE DOCUMENT 
+ 
+ 

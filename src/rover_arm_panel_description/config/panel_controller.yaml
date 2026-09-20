@@ -1,0 +1,29 @@
+/**:
+  ros__parameters:
+    update_rate: 100
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    panel_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    joints:
+      - main_switch
+      - lever_switch_1
+      - lever_switch_2
+      - lever_switch_3
+      - lever_switch_4
+      - rotary_switch_1
+      - rotary_switch_2
+      - rotary_switch_3
+      - rotary_switch_4
+      - rotary_switch_5
+      - power_switch_1
+      - power_switch_2
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_partial_joints_goal: true

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rover Arm — Manual Keyboard Control Guide</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 960px;
+    margin: 2em auto;
+    padding: 0 1em;
+    line-height: 1.6;
+    color: #1a1a1a;
+    background: #fafafa;
+  }
+  h1 { border-bottom: 2px solid #2563eb; padding-bottom: .3em; }
+  h2 { color: #2563eb; margin-top: 2em; border-bottom: 1px solid #ddd; padding-bottom: .2em; }
+  h3 { color: #374151; margin-top: 1.5em; }
+  ul, ol { padding-left: 1.5em; }
+  li { margin-bottom: .3em; }
+  code {
+    background: #e5e7eb; padding: .15em .4em; border-radius: 4px; font-size: .9em;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  }
+  pre {
+    background: #1e1e2e; color: #cdd6f4; padding: 1em; border-radius: 8px;
+    overflow-x: auto; font-size: .85em; line-height: 1.4;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  }
+  pre .cmt { color: #6c7086; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; background: #fff; }
+  th, td { border: 1px solid #ddd; padding: .45em .7em; text-align: left; }
+  th { background: #eff6ff; color: #1e3a8a; }
+  tr:nth-child(even) { background: #f8fafc; }
+  kbd {
+    display: inline-block; min-width: 1.6em; text-align: center;
+    padding: .1em .45em; margin: 0 .1em;
+    background: linear-gradient(180deg, #fff, #e5e7eb);
+    border: 1px solid #9ca3af; border-bottom-width: 3px; border-radius: 6px;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: .9em;
+  }
+  .keygroup {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+    padding: 1em 1.5em; margin: 1em 0;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: .92em; line-height: 1.8; overflow-x: auto; white-space: pre;
+  }
+  .tag {
+    display: inline-block; padding: .15em .7em; border-radius: 999px;
+    font-size: .8em; font-weight: 600; vertical-align: middle;
+  }
+  .tag.arm { background: #dbeafe; color: #1d4ed8; }
+  .tag.grip { background: #dcfce7; color: #15803d; }
+  .tag.util { background: #f3e8ff; color: #7e22ce; }
+  .note {
+    background: #fef9c3; border-left: 4px solid #eab308;
+    padding: .7em 1em; border-radius: 0 8px 8px 0; margin: 1em 0;
+  }
+  .danger {
+    background: #fee2e2; border-left: 4px solid #dc2626;
+    padding: .7em 1em; border-radius: 0 8px 8px 0; margin: 1em 0;
+  }
+  footer { margin-top: 3em; color: #6b7280; font-size: .85em; border-top: 1px solid #ddd; padding-top: 1em; }
+</style>
+</head>
+<body>
+
+<h1>🦾 Rover Arm — Manual Keyboard Control</h1>
+
+<p>
+  This guide explains how to launch the <strong>arm alone</strong> (no rover base, no Gazebo,
+  no MoveIt) on <strong>mock hardware</strong> and jog every joint by hand from the keyboard.
+  The stack that gets started:
+</p>
+<ul>
+  <li><code>ros2_control_node</code> with the <code>mock_components/GenericSystem</code> hardware plugin (from <code>urdf/arm.urdf.xacro</code>)</li>
+  <li><code>joint_state_broadcaster</code> → publishes <code>/joint_states</code></li>
+  <li><code>arm_controller</code> (JointTrajectoryController: j1, j2, j3, wrist pitch, wrist roll)</li>
+  <li><code>gripper_controller</code> (JointTrajectoryController: slider → 3-finger gripper)</li>
+  <li><code>robot_state_publisher</code> + RViz (optional) so you can watch the arm move</li>
+  <li>Keyboard teleop node in its own <code>xterm</code> window</li>
+  <li>Gamepad teleop node subscribing to <code>/joy</code> (PS4/Xbox controller — see below)</li>
+</ul>
+
+<h2>🚀 Quick start</h2>
+
+<pre>
+<span class="cmt"># 1. Source the RoboStack ROS 2 Humble environment (outside the repo)</span>
+source ~/Documents/Polispace/ros2_humble/local_setup.zsh
+export ROS_LOCALHOST_ONLY=1        <span class="cmt"># required on macOS for DDS discovery</span>
+
+<span class="cmt"># 2. Build the package (needed once — new files were added)</span>
+cd ~/Documents/Polispace/LOCAL/ROS_Control/Ros_control
+colcon build --symlink-install --packages-select rover_arm_description
+source install/setup.zsh
+
+<span class="cmt"># 3. Launch arm + controllers + keyboard teleop + RViz</span>
+ros2 launch rover_arm_description arm_keyboard_manual.launch.py
+</pre>
+
+<p>
+  A new <strong>xterm window</strong> opens automatically with the teleop status line —
+  that window must stay focused to capture your key presses. RViz shows the arm moving in
+  real time. Close everything with <kbd>Ctrl</kbd>+<kbd>C</kbd> in the launch terminal.
+</p>
+
+<h2>⌨️ Key map</h2>
+
+<p>Each key jogs one joint by one step (default <strong>2.9° ≈ 0.05 rad</strong> per press):</p>
+
+<div class="keygroup">ARM JOINTS                     GRIPPER
+ q   w   e   r   t             y
+ a   s   d   f   g             h
+ |   |   |   |   |             |
+ j1  j2  j3  pitch roll     slider
+yaw sho elb             (close/open)</div>
+
+<table>
+  <thead>
+    <tr><th>Key</th><th>Action</th><th>Joint</th><th>Group</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><kbd>q</kbd> / <kbd>a</kbd></td><td>base yaw ± step</td><td><code>j1_joint</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td><kbd>w</kbd> / <kbd>s</kbd></td><td>shoulder ± step</td><td><code>j2_joint</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td><kbd>e</kbd> / <kbd>d</kbd></td><td>elbow ± step</td><td><code>j3_joint</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td><kbd>r</kbd> / <kbd>f</kbd></td><td>wrist pitch ± step</td><td><code>ee_base_joint_x</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td><kbd>t</kbd> / <kbd>g</kbd></td><td>wrist roll ± step</td><td><code>ee_base_joint_y</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td><kbd>y</kbd> / <kbd>h</kbd></td><td>gripper close/open (± 5&nbsp;mm)</td><td><code>slider_joint</code></td><td><span class="tag grip">gripper</span></td></tr>
+    <tr><td><kbd>o</kbd></td><td>open gripper fully (slider → 0)</td><td><code>slider_joint</code></td><td><span class="tag grip">gripper</span></td></tr>
+    <tr><td><kbd>c</kbd></td><td>close gripper fully (slider → 50&nbsp;mm)</td><td><code>slider_joint</code></td><td><span class="tag grip">gripper</span></td></tr>
+    <tr><td><kbd>0</kbd></td><td>home — every joint back to 0</td><td>all</td><td><span class="tag util">utility</span></td></tr>
+    <tr><td><kbd>+</kbd> / <kbd>=</kbd></td><td>double the step size (max 16×)</td><td>—</td><td><span class="tag util">utility</span></td></tr>
+    <tr><td><kbd>-</kbd> / <kbd>_</kbd></td><td>halve the step size (min 1/16×)</td><td>—</td><td><span class="tag util">utility</span></td></tr>
+    <tr><td><kbd>?</kbd></td><td>show the in-terminal help again</td><td>—</td><td><span class="tag util">utility</span></td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>quit the teleop</td><td>—</td><td><span class="tag util">utility</span></td></tr>
+  </tbody>
+</table>
+
+<p>
+  The teleop status line shows the live step size and every joint position
+  (angles in degrees, gripper travel in mm), e.g.
+</p>
+<pre>status: step 2.9 deg (5.0 mm) | j1   +12.3  j2   -45.0  j3   +30.0  pitch  +90.0  roll    +0.0  grip  25.0 mm</pre>
+
+<div class="note">
+  <strong>Tip:</strong> keys are read one press at a time — holding a key down repeats
+  thanks to the keyboard auto-repeat. Watch the status line: when a joint limit is hit the
+  teleop prints <code>[joint] joint limit reached</code> and refuses to move further.
+</div>
+
+<h2>🎮 Gamepad control (PS4 / Xbox)</h2>
+
+<p>
+  The launch also starts a <strong>gamepad teleop</strong> that subscribes to the standard
+  <code>sensor_msgs/Joy</code> topic and jogs every joint <em>continuously</em> — analogue
+  sticks act like velocity knobs, unlike the fixed keyboard steps.
+</p>
+
+<pre>ros2 launch rover_arm_description arm_keyboard_manual.launch.py</pre>
+
+<p>
+  <code>joy_source</code> picks who publishes <code>/joy</code>:
+</p>
+<table>
+  <thead><tr><th>Value</th><th>Source</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>auto</code> <em>(default)</em></td>
+      <td>standard <code>joy_node</code> on Linux, pygame publisher otherwise</td>
+      <td>picks the right one per OS</td>
+    </tr>
+    <tr>
+      <td><code>ros</code></td>
+      <td><code>ros2 run joy joy_node</code> reading <code>/dev/input/js0</code></td>
+      <td>production: <strong>Jetson Orin NX, Ubuntu 22.04 + ROS 2 Humble</strong>
+          (<code>sudo apt install ros-humble-joy</code>, and add yourself to the
+          <code>input</code> group: <code>sudo usermod -aG input $USER</code>, then re-login)</td>
+    </tr>
+    <tr>
+      <td><code>pygame</code></td>
+      <td>bundled <code>arm_joy_publisher.py</code> (DS4 over Bluetooth works out of the box)</td>
+      <td>dev: macOS (pygame is installed in the RoboStack env)</td>
+    </tr>
+    <tr>
+      <td><code>none</code></td>
+      <td>gamepad disabled</td>
+      <td>headless / CI</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Button map</h3>
+
+<div class="keygroup">        L1 ┌───────────┐ R1        L2/R2 = DEADMAN
+           roll - │  L  stick  │ roll +    HOLD a trigger to enable
+                  │  yaw/should│           motion, release to stop
+     D-pad ─────► │  R  stick  │
+   open/close     └───────────┘           right stick: elbow (Y) /
+   gripper                                wrist pitch (X)</div>
+
+<table>
+  <thead><tr><th>Input</th><th>Action</th><th>Joint</th><th>Group</th></tr></thead>
+  <tbody>
+    <tr><td>left stick X</td><td>base yaw</td><td><code>j1_joint</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td>left stick Y</td><td>shoulder (push up = up)</td><td><code>j2_joint</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td>right stick Y</td><td>elbow (push up = up)</td><td><code>j3_joint</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td>right stick X</td><td>wrist pitch</td><td><code>ee_base_joint_x</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td>L1 / R1</td><td>wrist roll −/+</td><td><code>ee_base_joint_y</code></td><td><span class="tag arm">arm</span></td></tr>
+    <tr><td>D-pad up / down (hold)</td><td>gripper open / close</td><td><code>slider_joint</code></td><td><span class="tag grip">gripper</span></td></tr>
+    <tr><td><strong>L2 or R2 (hold)</strong></td><td>deadman — motion enabled while held</td><td>—</td><td><span class="tag util">safety</span></td></tr>
+    <tr><td>cross ✕</td><td>home — all joints to 0</td><td>all</td><td><span class="tag util">utility</span></td></tr>
+    <tr><td>circle ○</td><td>open gripper fully</td><td><code>slider_joint</code></td><td><span class="tag grip">gripper</span></td></tr>
+    <tr><td>square □</td><td>close gripper fully</td><td><code>slider_joint</code></td><td><span class="tag grip">gripper</span></td></tr>
+    <tr><td>triangle △</td><td>software e-stop toggle (blocks all motion until pressed again)</td><td>—</td><td><span class="tag util">safety</span></td></tr>
+  </tbody>
+</table>
+
+<h3>Safety behaviour</h3>
+<ul>
+  <li><strong>Deadman:</strong> sticks do nothing unless L2/R2 is held (≥ 50&nbsp;%).</li>
+  <li><strong>Stale-data watchdog:</strong> if <code>/joy</code> stops arriving (gamepad
+      battery dies, Bluetooth drops, publisher crashes), the deadman auto-releases after
+      0.5&nbsp;s and the arm freezes — it never keeps moving on the last cached message.</li>
+  <li><strong>E-stop:</strong> triangle latches motion off; press again to re-enable.</li>
+  <li><strong>URDF limits:</strong> same clamping as the keyboard teleop; a stick pushed
+      against a joint limit simply stops contributing.</li>
+</ul>
+
+<p>
+  Speeds are parameters of the teleop node: <code>max_speed</code> (rad/s, default 0.8),
+  <code>wrist_speed</code> (default 1.0), <code>slider_speed</code> (m/s, default 0.02),
+  <code>deadzone</code> (default 0.08). Axis/button layouts follow two profiles —
+  <code>sdl</code> (macOS/pygame, triggers on axes 2/5) and <code>joydev</code>
+  (Linux <code>joy_node</code>, right stick on axes 2/3, triggers on 4/5) — selected
+  automatically by <code>joy_source</code>, override with
+  <code>-p profile:=joydev</code> if your pad maps differently.
+</p>
+
+<div class="note">
+  <strong>Tip (Jetson):</strong> verify the pad first with
+  <code>ros2 topic echo /joy</code> while pressing buttons — if nothing publishes, the pad
+  is on <code>js1</code> (set <code>device_id</code>) or the <code>input</code> group
+  membership hasn’t taken effect yet.
+</div>
+
+<h2>🔧 Joint limits</h2>
+
+<p>Limits come from <code>urdf/rover_arm.urdf.xacro</code> and are enforced by the teleop:</p>
+
+<table>
+  <thead>
+    <tr><th>Joint</th><th>Type</th><th>Axis</th><th>Range</th><th>Keys</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>j1_joint</code></td><td>continuous</td><td>z (yaw)</td><td>unlimited</td><td><kbd>q</kbd>/<kbd>a</kbd></td></tr>
+    <tr><td><code>j2_joint</code></td><td>revolute</td><td>x</td><td>±90°</td><td><kbd>w</kbd>/<kbd>s</kbd></td></tr>
+    <tr><td><code>j3_joint</code></td><td>revolute</td><td>x</td><td>±90°</td><td><kbd>e</kbd>/<kbd>d</kbd></td></tr>
+    <tr><td><code>ee_base_joint_x</code></td><td>revolute</td><td>x (pitch)</td><td>0 … 180°</td><td><kbd>r</kbd>/<kbd>f</kbd></td></tr>
+    <tr><td><code>ee_base_joint_y</code></td><td>continuous</td><td>y (roll)</td><td>unlimited</td><td><kbd>t</kbd>/<kbd>g</kbd></td></tr>
+    <tr><td><code>slider_joint</code></td><td>prismatic</td><td>y</td><td>0 … 50 mm (0 = open)</td><td><kbd>y</kbd>/<kbd>h</kbd></td></tr>
+  </tbody>
+</table>
+
+<h2>⚙️ Launch arguments</h2>
+
+<pre>ros2 launch rover_arm_description arm_keyboard_manual.launch.py <span class="cmt">[arg:=value]</span></pre>
+
+<table>
+  <thead>
+    <tr><th>Argument</th><th>Default</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>gui</code></td><td><code>true</code></td><td>Start RViz alongside the controllers.</td></tr>
+    <tr><td><code>teleop</code></td><td><code>true</code></td><td>Open the keyboard teleop in a new xterm window (needs XQuartz).</td></tr>
+    <tr><td><code>joy_source</code></td><td><code>auto</code></td><td>Gamepad source: <code>auto</code>, <code>ros</code> (joy_node, Linux), <code>pygame</code> (bundled publisher) or <code>none</code>.</td></tr>
+    <tr><td><code>step</code></td><td><code>0.05</code></td><td>Rotation step per key press in rad. Gripper step is <code>step/10</code> in metres.</td></tr>
+    <tr><td><code>rviz_config</code></td><td><code>rviz/urdf_config.rviz</code></td><td>RViz configuration to load.</td></tr>
+  </tbody>
+</table>
+
+<h2>🖥 Running the teleop manually</h2>
+
+<p>
+  <code>ros2 launch</code> does not forward keyboard input to its processes, which is why the
+  teleop opens in its own xterm. If XQuartz/xterm is not installed (the launch prints a
+  reminder) or you prefer your own terminal, start the teleop by hand in a
+  <strong>second terminal</strong>:
+</p>
+
+<pre>
+<span class="cmt"># Terminal 1 — everything except the teleop window</span>
+ros2 launch rover_arm_description arm_keyboard_manual.launch.py teleop:=false
+
+<span class="cmt"># Terminal 2 — keyboard teleop</span>
+source install/setup.zsh
+export ROS_LOCALHOST_ONLY=1
+ros2 run rover_arm_description arm_keyboard_teleop.py
+</pre>
+
+<p>The node accepts the same knobs as parameters:</p>
+<pre>ros2 run rover_arm_description arm_keyboard_teleop.py --ros-args -p step:=0.1 -p duration:=0.5</pre>
+
+<h2>📡 Topics &amp; debug commands</h2>
+
+<table>
+  <thead><tr><th>Topic</th><th>Type</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>/arm_controller/joint_trajectory</code></td><td><code>trajectory_msgs/JointTrajectory</code></td><td>teleop → arm controller commands</td></tr>
+    <tr><td><code>/gripper_controller/joint_trajectory</code></td><td><code>trajectory_msgs/JointTrajectory</code></td><td>teleop → gripper controller commands</td></tr>
+    <tr><td><code>/joint_states</code></td><td><code>sensor_msgs/JointState</code></td><td>broadcast joint positions/velocities</td></tr>
+    <tr><td><code>/arm_controller/follow_joint_trajectory</code></td><td>action</td><td>action server (used by MoveIt demos)</td></tr>
+  </tbody>
+</table>
+
+<pre>
+ros2 control list_controllers          <span class="cmt"># all three should be "active"</span>
+ros2 control list_hardware_interfaces
+ros2 topic echo /joint_states          <span class="cmt"># watch positions change as you press keys</span>
+</pre>
+
+<h2>🩺 Troubleshooting</h2>
+
+<table>
+  <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Nothing discovers anything; spawners hang</td>
+      <td>Export <code>ROS_LOCALHOST_ONLY=1</code> in <em>every</em> terminal (macOS DDS multicast issue — see README).</td>
+    </tr>
+    <tr>
+      <td>No xterm window appears</td>
+      <td>Install XQuartz (<code>xterm</code> lives in <code>/opt/X11/bin</code>) and restart the terminal, or run the teleop manually as shown above.</td>
+    </tr>
+    <tr>
+      <td>Teleop prints “stdin closed”</td>
+      <td>It was started without a keyboard attached — run it via <code>ros2 run</code> in a real terminal.</td>
+    </tr>
+    <tr>
+      <td>Keys move nothing; <code>list_controllers</code> shows <code>inactive</code></td>
+      <td>Wait a few seconds after launching; the controllers are spawned after <code>joint_state_broadcaster</code>. Re-run the launch if a spawner errored.</td>
+    </tr>
+    <tr>
+      <td>Gamepad connected but nothing moves</td>
+      <td>Hold <strong>L2/R2</strong> (deadman) while pushing the sticks; check the pad publishes with <code>ros2 topic echo /joy</code>; on Jetson make sure <code>ros-humble-joy</code> is installed and you are in the <code>input</code> group.</td>
+    </tr>
+    <tr>
+      <td>Arm keeps drifting after releasing the sticks</td>
+      <td>It shouldn’t — the deadman and the 0.5&nbsp;s <code>/joy</code> watchdog stop all motion. If it does, check that only one teleop node is running (<code>ros2 node list</code>).</td>
+    </tr>
+    <tr>
+      <td>Sticks move the wrong joints / triggers don’t gate motion</td>
+      <td>Your pad’s axis layout doesn’t match the auto-selected profile — switch with <code>ros2 run rover_arm_description arm_joy_teleop.py --ros-args -p profile:=joydev</code> (or <code>sdl</code>).</td>
+    </tr>
+    <tr>
+      <td>Arm shows as boxes/ghost in RViz</td>
+      <td>Known macOS limitation: RViz can’t render the <code>.dae</code> meshes with the default renderer — geometry still moves correctly (see README “Known Issues”).</td>
+    </tr>
+    <tr>
+      <td>Gripper fingers don’t close in RViz</td>
+      <td>The fingers are URDF <em>mimic</em> joints; the mock hardware plugin doesn’t animate them — the slider itself moves. In Gazebo the fingers follow the slider.</td>
+    </tr>
+  </tbody>
+</table>
+
+<footer>
+  Package <code>rover_arm_description</code> · launch: <code>bringup/launch/arm_keyboard_manual.launch.py</code> ·
+  teleop: <code>teleop/arm_keyboard_teleop.py</code> · gamepad teleop: <code>teleop/arm_joy_teleop.py</code> ·
+  pygame joy bridge: <code>teleop/arm_joy_publisher.py</code> · workspace README has the full environment setup.
+</footer>
+
+</body>
+</html>

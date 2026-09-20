@@ -1,0 +1,166 @@
+panel:
+  width: 0.330
+  height: 0.450
+  depth: 0.020
+  incline_deg: 45
+  frame_id: panel_base
+
+indicators:
+  - id: ind_1
+    label: "PWR"
+    position: [0.105, 0.005, 0.390]
+  - id: ind_2
+    label: "CABLE"
+    position: [0.129, 0.005, 0.390]
+  - id: ind_3
+    label: "MAG"
+    position: [0.153, 0.005, 0.390]
+  - id: ind_4
+    label: "SYS"
+    position: [0.177, 0.005, 0.390]
+  - id: ind_5
+    label: "ERR"
+    position: [0.201, 0.005, 0.390]
+
+switches:
+  main_switch:
+    type: lever
+    joint: main_switch
+    label: "MAIN"
+    position: [0.085, 0.020, 0.220]
+    limits: [-1.57, 1.57]
+    off_position: 0.0
+    on_position: 1.57
+    critical: true
+    force_sensitive: true
+    force_limit: 10.0
+
+  lever_switch_1:
+    type: lever
+    joint: lever_switch_1
+    label: "L1"
+    position: [0.117, 0.020, 0.220]
+    limits: [-1.57, 1.57]
+    off_position: -1.57
+    on_position: 1.57
+
+  lever_switch_2:
+    type: lever
+    joint: lever_switch_2
+    label: "L2"
+    position: [0.149, 0.020, 0.220]
+    limits: [-1.57, 1.57]
+    off_position: -1.57
+    on_position: 1.57
+
+  lever_switch_3:
+    type: lever
+    joint: lever_switch_3
+    label: "L3"
+    position: [0.181, 0.020, 0.220]
+    limits: [-1.57, 1.57]
+    off_position: -1.57
+    on_position: 1.57
+
+  lever_switch_4:
+    type: lever
+    joint: lever_switch_4
+    label: "L4"
+    position: [0.213, 0.020, 0.220]
+    limits: [-1.57, 1.57]
+    off_position: -1.57
+    on_position: 1.57
+
+  rotary_switch_1:
+    type: rotary
+    joint: rotary_switch_1
+    label: "R1"
+    position: [0.055, 0.025, 0.300]
+    limits: [-6.28, 6.28]
+
+  rotary_switch_2:
+    type: rotary
+    joint: rotary_switch_2
+    label: "R2"
+    position: [0.086, 0.025, 0.300]
+    limits: [-6.28, 6.28]
+
+  rotary_switch_3:
+    type: rotary
+    joint: rotary_switch_3
+    label: "R3"
+    position: [0.117, 0.025, 0.300]
+    limits: [-6.28, 6.28]
+
+  rotary_switch_4:
+    type: rotary
+    joint: rotary_switch_4
+    label: "R4"
+    position: [0.148, 0.025, 0.300]
+    limits: [-6.28, 6.28]
+
+  rotary_switch_5:
+    type: rotary
+    joint: rotary_switch_5
+    label: "R5"
+    position: [0.179, 0.025, 0.300]
+    limits: [-6.28, 6.28]
+
+  power_switch_1:
+    type: rotary
+    joint: power_switch_1
+    label: "PWR1"
+    position: [0.210, 0.025, 0.300]
+    limits: [-6.28, 6.28]
+    off_position: 0.0
+    on_position: 1.57
+
+  power_switch_2:
+    type: rotary
+    joint: power_switch_2
+    label: "PWR2"
+    position: [0.241, 0.025, 0.300]
+    limits: [-6.28, 6.28]
+    off_position: 0.0
+    on_position: 1.57
+
+sockets:
+  - id: socket_grey
+    label: "SOCKET A"
+    position: [0.130, 0.010, 0.135]
+  - id: socket_pink_1
+    label: "CONN B"
+    position: [0.200, 0.035, 0.135]
+  - id: socket_pink_2
+    label: "CONN C"
+    position: [0.265, 0.035, 0.135]
+
+electromagnet:
+  label: "MAGNET"
+  position: [0.240, 0.030, 0.050]
+
+aruco_tags:
+  - id: 0
+    position: [0.050, 0.001, 0.390]
+    size: 0.045
+  - id: 1
+    position: [0.280, 0.001, 0.390]
+    size: 0.045
+
+task_sequence:
+  - operation: "Set MAIN switch ON"
+    check: "main_switch > 1.0"
+  - operation: "Set 4 lever switches to ON"
+    check: "all lever_switches > 0.5"
+  - operation: "Turn 3 rotary switches"
+    check: "count(rotary_switches > 0.5) >= 3"
+  - operation: "Insert plug into socket"
+    check: "sockets[0] == true"
+  - operation: "Turn Power Switch 1 ON"
+    check: "power_switches[0] > 1.0"
+  - operation: "Turn Power Switch 2 ON"
+    check: "power_switches[1] > 1.0"
+  - operation: "Place plate on electromagnet"
+    check: "plate_attached == true"
+  - operation: "All 5 indicators lit"
+    check: "all indicators == true"

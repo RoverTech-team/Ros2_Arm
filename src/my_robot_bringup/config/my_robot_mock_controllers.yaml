@@ -1,0 +1,80 @@
+/**:
+  ros__parameters:
+    update_rate: 100
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    gripper_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    joints:
+      - body_front_left_wheel_joint
+      - body_mid_left_wheel_joint
+      - body_rear_left_wheel_joint
+      - body_front_right_wheel_joint
+      - body_mid_right_wheel_joint
+      - body_rear_right_wheel_joint
+      - j1_joint
+      - j2_joint
+      - j3_joint
+      - ee_base_joint_x
+      - ee_base_joint_y
+      - slider_joint
+    command_interfaces:
+      - position
+      - velocity
+    state_interfaces:
+      - position
+      - velocity
+    allow_partial_joints_goal: true
+
+diff_drive_controller:
+  ros__parameters:
+    left_wheel_names:
+      - body_front_left_wheel_joint
+      - body_mid_left_wheel_joint
+      - body_rear_left_wheel_joint
+    right_wheel_names:
+      - body_front_right_wheel_joint
+      - body_mid_right_wheel_joint
+      - body_rear_right_wheel_joint
+    wheel_separation: 0.977
+    wheel_radius: 0.125
+    odom_frame_id: "odom"
+    base_frame_id: "base_footprint"
+    pose_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+    twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+    enable_odom_tf: false
+    publish_rate: 100.0
+    use_stamped_vel: True
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - j1_joint
+      - j2_joint
+      - j3_joint
+      - ee_base_joint_x
+      - ee_base_joint_y
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+
+gripper_controller:
+  ros__parameters:
+    joints:
+      - slider_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity

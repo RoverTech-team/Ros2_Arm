@@ -1,0 +1,161 @@
+# E1 probe: per-element grasp plan (parallel gripper).
+# tool0 poses in world frame; joints in [j1 j2 j3 j5].
+# contact_poses: indices of poses where the gripper contacts the
+#   element (clearance not checked on segments ending there)
+park_x: 0.52
+park_y: -0.24
+spawn_z: 0.02
+elements:
+  - name: electromagnet
+    type: POKE
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: socket_grey
+    type: POKE
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: socket_pink_2
+    type: POKE
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: main_switch
+    type: LEVER
+    variant: grasp_down_swing_up_s-1
+    contact_drot_rad: 0.457
+    contact_axis_err_rad: 0.330
+    clearance_m: 0.4418
+    contact_poses: [1, 2]
+    tool0_poses:
+      - xyz: [1.4200, 0.0500, 0.2050]
+        xyzw: [0.500000, -0.500000, 0.500000, -0.500000]
+      - xyz: [1.4800, 0.0500, 0.2050]
+        xyzw: [0.500000, -0.500000, 0.500000, -0.500000]
+      - xyz: [1.5143, 0.0500, 0.2330]
+        xyzw: [0.500000, -0.500000, 0.500000, -0.500000]
+    joints:
+      - [-1.5140, -1.5293, 1.2241, -0.2885]
+      - [-1.5205, -1.2919, 0.9659, -0.3095]
+      - [-1.5235, -1.1325, 0.8375, -0.2795]
+  - name: lever_switch_1
+    type: LEVER
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: lever_switch_2
+    type: LEVER
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: lever_switch_3
+    type: LEVER
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: lever_switch_4
+    type: LEVER
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: rotary_switch_1
+    type: ROTARY
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: rotary_switch_2
+    type: ROTARY
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: rotary_switch_3
+    type: ROTARY
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: rotary_switch_4
+    type: ROTARY
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: rotary_switch_5
+    type: ROTARY
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: power_switch_1
+    type: POWER
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: power_switch_2
+    type: POWER
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []
+  - name: indicator_3
+    type: POKE
+    variant: flat_press
+    contact_drot_rad: 0.991
+    contact_axis_err_rad: 0.260
+    clearance_m: 0.4931
+    contact_poses: [1]
+    tool0_poses:
+      - xyz: [1.4550, 0.1650, 0.3950]
+        xyzw: [0.000000, 0.707107, 0.000000, 0.707107]
+      - xyz: [1.4950, 0.1650, 0.3950]
+        xyzw: [0.000000, 0.707107, 0.000000, 0.707107]
+    joints:
+      - [-1.2921, -1.0800, 1.1517, 0.6085]
+      - [-1.3123, -0.9452, 0.9718, 0.6085]
+  - name: aruco_tag_1
+    type: POKE
+    variant: 
+    contact_drot_rad: -1.000
+    contact_axis_err_rad: -1.000
+    clearance_m: -1.0000
+    contact_poses: []
+    joints: []

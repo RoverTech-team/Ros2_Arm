@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<robot name="rover_with_two_finger_arm" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:include filename="common_properties.xacro" />
+    <xacro:include filename="$(find rover_body_description)/urdf/rover_body.urdf.xacro" />
+
+    <xacro:include filename="$(find rover_two_finger_arm_description)/urdf/rover_two_finger_arm.urdf.xacro" />
+    <xacro:include filename="$(find rover_two_finger_arm_description)/urdf/rover_two_finger_arm.ros2_control.xacro" />
+    <xacro:include filename="$(find my_robot_description)/urdf/rover_body.ros2_control.xacro" />
+
+    <!-- rover base: world link is the root so RViz's world frame exists -->
+    <link name="world"/>
+    <link name="base_footprint"/>
+    <link name="base_link"/>
+    <joint name="world_to_base_footprint" type="fixed">
+        <parent link="world"/>
+        <child link="base_footprint"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <joint name="base_footprint_to_base_link" type="fixed">
+        <parent link="base_footprint"/>
+        <child link="base_link"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <!-- rover body: detailed frame/suspensions/wheels, main link is body_frame -->
+    <xacro:rover_body parent="base_link" prefix="body_">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:rover_body>
+
+    <link name="arm_mount" />
+    <link name="arm_base_link" />
+
+    <joint name="arm_mount_joint" type="fixed">
+        <parent link="body_frame"/>
+        <child link="arm_mount"/>
+        <origin xyz="-0.16 0.24 0.20" rpy="0 0 0"/>
+    </joint>
+
+    <joint name="arm_mount_to_arm_base" type="fixed">
+        <parent link="arm_mount"/>
+        <child link="arm_base_link"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <xacro:rover_two_finger_arm parent="arm_base_link" prefix="">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </xacro:rover_two_finger_arm>
+
+    <link name="tool0"/>
+    <joint name="ee_base_to_tool0" type="fixed">
+        <parent link="ee_base"/>
+        <child link="tool0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <xacro:two_finger_arm_ros2_control name="rover_two_finger_arm" use_gazebo="false"/>
+</robot>
