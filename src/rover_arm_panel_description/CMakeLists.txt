@@ -21,6 +21,7 @@ install(DIRECTORY
     config
     launch
     urdf
+    materials
     rviz
     meshes
     DESTINATION share/${PROJECT_NAME}

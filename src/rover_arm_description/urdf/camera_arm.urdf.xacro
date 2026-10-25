@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="gemini_camera">
+
+  <!-- 1. Link fisico della telecamera con box dimensionato correttamente -->
+  <link name="gemini_camera_link">
+    <visual>
+      <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.042 0.042 0.04"/>
+      </geometry>
+      <material name="dark_grey">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+      </material>
+    </visual>
+
+    <collision>
+      <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0015 0.0035 0.0035"/>
+      </geometry>
+    </collision>
+
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.116"/>
+      <inertia ixx="0.000020" ixy="0.0" ixz="0.0" iyy="0.000013" iyz="0.0" izz="0.000013"/>
+    </inertial>
+  </link>
+
+  <!-- 2. Giunto di ancoraggio al centro delle dita (ee_base), senza sballare le coordinate -->
+  <joint name="camera_rover_mount_joint" type="fixed">
+    <parent link="ee_base"/> 
+    <child link="gemini_camera_link"/>
+    <!-- Posizionata dritta nel palmo, a 2 centimetri in avanti -->
+    <origin xyz="0.0 0.14 0.01" rpy="0 -1.57 3.14"/> 
+  </joint>
+
+  <!-- 3. Link e giunto ottico per i topic RGBD -->
+  <link name="gemini_camera_optical_frame"/>
+  
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="gemini_camera_link"/>
+    <child link="gemini_camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="1.570796 -1.570796 0"/>
+  </joint>
+  
+  <!-- Previene la fusione del giunto fisico -->
+  <gazebo reference="camera_rover_mount_joint">
+    <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
+
+  <!-- Previene la fusione del giunto ottico -->
+  <gazebo reference="camera_optical_joint">
+    <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
+
+  <!-- 4. Definizione del sensore Gazebo -->
+<gazebo reference="gemini_camera_link">
+  <sensor name="gemini_camera" type="rgbd_camera">
+    <pose>0 0 0 -1.570796 0 -1.570796</pose>
+    <frame_id>gemini_camera_optical_frame</frame_id>
+    <always_on>true</always_on>
+    <update_rate>30.0</update_rate>
+    <topic>/camera/rgbd</topic>
+
+    <camera>
+      <!-- FOV orizzontale RGB: 94 gradi -->
+      <horizontal_fov>1.64061</horizontal_fov>
+
+      <!-- Risoluzione RGB Gemini 305 -->
+      <image>
+        <width>1280</width>
+        <height>800</height>
+      </image>
+
+      <clip>
+        <near>0.2</near>
+        <far>1.0</far>
+      </clip>
+
+      <optical_frame_id>gemini_camera_optical_frame</optical_frame_id>
+    </camera>
+  </sensor>
+</gazebo>
+</robot>

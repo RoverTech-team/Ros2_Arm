@@ -16,6 +16,10 @@
 
     joints:
       - body_front_left_wheel_joint
+      - body_left_suspension_joint
+      - body_left_sub_suspension_joint
+      - body_right_suspension_joint
+      - body_right_sub_suspension_joint
       - body_mid_left_wheel_joint
       - body_rear_left_wheel_joint
       - body_front_right_wheel_joint

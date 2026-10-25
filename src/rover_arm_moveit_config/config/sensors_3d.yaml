@@ -1,0 +1,14 @@
+/**:
+  ros__parameters:
+    octomap_frame: world
+    octomap_resolution: 0.05
+    sensors: ["point_cloud_sensor"]
+    point_cloud_sensor:
+      sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
+      point_cloud_topic: /camera/rgbd/points
+      max_range: 5.0
+      point_subsample: 1
+      padding_offset: 0.05
+      padding_scale: 1.0
+      max_update_rate: 5.0
+      filtered_cloud_topic: filtered_cloud

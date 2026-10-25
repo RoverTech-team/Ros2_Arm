@@ -36,6 +36,22 @@
             <state_interface name="position" />
             <state_interface name="velocity" />
         </joint>
+	<joint name="body_left_suspension_joint">
+            <state_interface name="position" />
+            <state_interface name="velocity" />
+        </joint>
+        <joint name="body_left_sub_suspension_joint">
+            <state_interface name="position" />
+            <state_interface name="velocity" />
+        </joint>
+        <joint name="body_right_suspension_joint">
+            <state_interface name="position" />
+            <state_interface name="velocity" />
+        </joint>
+        <joint name="body_right_sub_suspension_joint">
+            <state_interface name="position" />
+            <state_interface name="velocity" />
+        </joint>
     </ros2_control>
 
 </robot>

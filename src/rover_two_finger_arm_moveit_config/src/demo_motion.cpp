@@ -66,7 +66,7 @@ int main(int argc, char ** argv)
       return 1;
     }
 
-    auto & traj = plan.trajectory_.joint_trajectory;
+    auto & traj = plan.trajectory.joint_trajectory;
     auto & points = traj.points;
     if (points.size() >= 2) {
       if (points[1].time_from_start == rclcpp::Duration(0, 0)) {

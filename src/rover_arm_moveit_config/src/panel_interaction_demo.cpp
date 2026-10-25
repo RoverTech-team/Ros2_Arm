@@ -1,4 +1,8 @@
+#include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <cmath>
+#include <future>
 #include <memory>
 #include <string>
 #include <thread>
@@ -6,333 +10,851 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
-#include <rclcpp/executors/single_threaded_executor.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
+
 #include <control_msgs/action/follow_joint_trajectory.hpp>
-#include <geometry_msgs/msg/pose.hpp>
-#include <nav2_msgs/action/navigate_to_pose.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
+#include <std_msgs/msg/bool.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <trajectory_msgs/msg/joint_trajectory_point.hpp>
+
 #include <moveit/move_group_interface/move_group_interface.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <moveit/robot_model/robot_model.h>
+#include <moveit/robot_model/joint_model.h>
 
-#include <moveit_msgs/msg/constraints.hpp>
-#include <moveit_msgs/msg/orientation_constraint.hpp>
+using FollowJointTrajectoryAction =
+    control_msgs::action::FollowJointTrajectory;
 
-using FollowJointTrajectoryAction = control_msgs::action::FollowJointTrajectory;
-using NavigateToPoseAction = nav2_msgs::action::NavigateToPose;
+using MoveGroupInterface =
+    moveit::planning_interface::MoveGroupInterface;
 
-struct PanelTarget {
-  std::string name;
-  double x, y, z;
-  // Fallback joint-space target in the "arm" group order:
-  // j1_joint, j2_joint, j3_joint, ee_base_joint_x, ee_base_joint_y.
-  double j1, j2, j3, jx, jy;
-};
+using namespace std::chrono_literals;
 
-// World-frame positions of panel elements, plus fallback joint-space targets.
-// World positions are computed from panel_base frame via world_to_panel_base:
-//   x = 1.5 - panel_y,  y = panel_x,  z = panel_z
-// The fallback joints are approximate; the primary approach uses a Cartesian
-// target on tool0. jx (ee_base_joint_x) is held at 0.0; jy (ee_base_joint_y)
-// reuses the old wrist-roll angle.
-static const std::vector<PanelTarget> kTargets = {
-  {"electromagnet",   1.470, 0.240, 0.050,  -1.099, -0.806, 1.229, 0.0, 0.0},
-  {"socket_grey",     1.490, 0.130, 0.135,  -1.312, -0.959, 1.324, 0.0, 0.0},
-  {"socket_pink_2",   1.465, 0.265, 0.135,  -1.053, -0.500, 1.000, 0.0, 0.0},
-  {"main_switch",     1.480, 0.050, 0.220,  -1.467, -0.549, 1.352, 0.0, 0.0},
-  {"lever_switch_2",  1.480, 0.165, 0.220,  -1.240, -0.256, 0.907, 0.0, 0.0},
-  {"lever_switch_4",  1.480, 0.280, 0.220,  -1.043, -0.387, 1.045, 0.0, 0.0},
-  {"power_switch_1",  1.475, 0.210, 0.300,  -1.155, -0.115, 0.728, 0.0, 0.0},
-  {"indicator_3",     1.495, 0.165, 0.375,  -1.249, -0.173, 0.798, 0.0, 0.0},
-  {"aruco_tag_1",     1.499, 0.280, 0.405,  -1.060, -0.400, 1.000, 0.0, 0.0},
-};
 
-static bool driveToPose(
-    const std::string & frame_id,
-    double x, double y, double yaw,
-    rclcpp_action::Client<NavigateToPoseAction>::SharedPtr & client,
-    rclcpp::Executor & executor,
-    rclcpp::Logger & logger)
+// ==========================================================
+// ATTESA DI UN FUTURE
+// ==========================================================
+
+template <typename FutureT>
+static bool waitFuture(
+    const FutureT & future,
+    const rclcpp::Node::SharedPtr & node,
+    double sim_timeout_s,
+    double wall_timeout_s)
 {
-  if (!client->action_server_is_ready()) {
-    RCLCPP_WARN(logger, "Nav2 action server not ready, skipping drive.");
+    const auto sim_deadline =
+        node->now() +
+        rclcpp::Duration::from_seconds(sim_timeout_s);
+
+    const auto wall_deadline =
+        std::chrono::steady_clock::now() +
+        std::chrono::duration<double>(wall_timeout_s);
+
+    while (rclcpp::ok()) {
+
+        if (future.wait_for(20ms) ==
+            std::future_status::ready) {
+            return true;
+        }
+
+        if (node->now() > sim_deadline ||
+            std::chrono::steady_clock::now() > wall_deadline) {
+            return false;
+        }
+    }
+
     return false;
-  }
-  auto goal = NavigateToPoseAction::Goal();
-  goal.pose.header.frame_id = frame_id;
-  goal.pose.pose.position.x = x;
-  goal.pose.pose.position.y = y;
-  goal.pose.pose.position.z = 0.0;
-  tf2::Quaternion q;
-  q.setRPY(0, 0, yaw);
-  goal.pose.pose.orientation = tf2::toMsg(q);
-  RCLCPP_INFO(logger, "Driving base to (%.2f, %.2f, %.2f) in frame '%s'...",
-              x, y, yaw, frame_id.c_str());
-  auto send_future = client->async_send_goal(goal);
-  if (executor.spin_until_future_complete(send_future, std::chrono::seconds(5))
-      != rclcpp::FutureReturnCode::SUCCESS) {
-    RCLCPP_WARN(logger, "Failed to send Nav2 goal.");
-    return false;
-  }
-  auto goal_handle = send_future.get();
-  if (!goal_handle) {
-    RCLCPP_WARN(logger, "Nav2 goal was rejected.");
-    return false;
-  }
-  auto result_future = client->async_get_result(goal_handle);
-  if (executor.spin_until_future_complete(result_future, std::chrono::seconds(60))
-      != rclcpp::FutureReturnCode::SUCCESS) {
-    RCLCPP_WARN(logger, "Nav2 navigation timed out.");
-    return false;
-  }
-  auto result = result_future.get();
-  if (result.code != rclcpp_action::ResultCode::SUCCEEDED) {
-    RCLCPP_WARN(logger, "Nav2 navigation failed.");
-    return false;
-  }
-  RCLCPP_INFO(logger, "Base repositioning complete.");
-  return true;
 }
 
-int main(int argc, char ** argv) {
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<rclcpp::Node>("panel_interaction_demo");
-  rclcpp::executors::SingleThreadedExecutor executor;
-  executor.add_node(node);
-  auto logger = node->get_logger();
 
-  node->declare_parameter<bool>("arm_only", false);
-  node->declare_parameter<bool>("force_panel_facing", true);
-  node->declare_parameter<std::string>("trajectory_action_topic", "/arm/arm_controller/follow_joint_trajectory");
-  bool arm_only = node->get_parameter("arm_only").as_bool();
-  bool force_panel_facing = node->get_parameter("force_panel_facing").as_bool();
-  std::string traj_topic = node->get_parameter("trajectory_action_topic").as_string();
+// ==========================================================
+// INVIO TRAIETTORIA CON CANCELLAZIONE
+// ==========================================================
 
-  RCLCPP_INFO(logger, "Configuration: arm_only=%s, force_panel_facing=%s, trajectory_action_topic=%s",
-              arm_only ? "true" : "false", force_panel_facing ? "true" : "false", traj_topic.c_str());
-
-  RCLCPP_INFO(logger, "Creating action client for %s...", traj_topic.c_str());
-  auto action_client = rclcpp_action::create_client<FollowJointTrajectoryAction>(
-    node, traj_topic);
-
-  RCLCPP_INFO(logger, "Waiting for arm_controller action server (with executor spinning)...");
-  {
-    auto timeout = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-    while (rclcpp::ok() && std::chrono::steady_clock::now() < timeout) {
-      if (action_client->action_server_is_ready()) {
-        RCLCPP_INFO(logger, "action_server_is_ready() returned true for %s", traj_topic.c_str());
-        break;
-      }
-      executor.spin_some();
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-    if (!action_client->action_server_is_ready()) {
-      RCLCPP_WARN(logger, "Action server not ready on %s, trying fallback /arm_controller/follow_joint_trajectory...", traj_topic.c_str());
-      traj_topic = "/arm_controller/follow_joint_trajectory";
-      action_client = rclcpp_action::create_client<FollowJointTrajectoryAction>(node, traj_topic);
-      auto fallback_timeout = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-      while (rclcpp::ok() && std::chrono::steady_clock::now() < fallback_timeout) {
-        if (action_client->action_server_is_ready()) {
-          RCLCPP_INFO(logger, "action_server_is_ready() returned true for fallback %s", traj_topic.c_str());
-          break;
-        }
-        executor.spin_some();
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-      }
-    }
-    if (!action_client->action_server_is_ready()) {
-      RCLCPP_ERROR(logger, "arm_controller action server not available on either topic after timeout");
-    }
-  }
-  RCLCPP_INFO(logger, "arm_controller action server check complete.");
-
-  // ── Nav2 NavigateToPose action client (optional if arm_only) ──
-  rclcpp_action::Client<NavigateToPoseAction>::SharedPtr nav_client = nullptr;
-  if (!arm_only) {
-    RCLCPP_INFO(logger, "Creating action client for /navigate_to_pose...");
-    nav_client = rclcpp_action::create_client<NavigateToPoseAction>(
-      node, "/navigate_to_pose");
-    RCLCPP_INFO(logger, "Waiting for Nav2 navigate_to_pose action server...");
-    {
-      auto timeout = std::chrono::steady_clock::now() + std::chrono::seconds(20);
-      while (rclcpp::ok() && std::chrono::steady_clock::now() < timeout) {
-        if (nav_client->action_server_is_ready()) break;
-        executor.spin_some();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      }
-      if (!nav_client->action_server_is_ready()) {
-        RCLCPP_WARN(logger, "Nav2 action server not available after 20s. Running in arm-only mode.");
-        arm_only = true;
-      } else {
-        RCLCPP_INFO(logger, "Nav2 action server ready.");
-      }
-    }
-  }
-
-  RCLCPP_INFO(logger, "Connecting to MoveGroup...");
-  using moveit::planning_interface::MoveGroupInterface;
-  auto move_group = MoveGroupInterface(node, "arm");
-  move_group.setMaxVelocityScalingFactor(0.3);
-  move_group.setMaxAccelerationScalingFactor(0.3);
-  move_group.setPlanningTime(5.0);
-  RCLCPP_INFO(logger, "MoveGroup interface ready.");
-
-  // Facing orientation: tool0 pointing towards +x (normal to the maintenance panel at x=1.5)
-  // Identity orientation in world frame has tool0 pointing along +x with upright alignment.
-  geometry_msgs::msg::Quaternion facing_orientation;
-  facing_orientation.x = 0.0;
-  facing_orientation.y = 0.0;
-  facing_orientation.z = 0.0;
-  facing_orientation.w = 1.0;
-
-  if (force_panel_facing) {
-    moveit_msgs::msg::OrientationConstraint ocm;
-    ocm.link_name = "tool0";
-    ocm.header.frame_id = "world";
-    ocm.orientation = facing_orientation;
-    // Enforce orientation facing the panel with allowable deviation in pitch/roll/yaw
-    ocm.absolute_x_axis_tolerance = 0.6; // ~34 deg tolerance roll around approach axis
-    ocm.absolute_y_axis_tolerance = 0.4; // pitch tolerance
-    ocm.absolute_z_axis_tolerance = 0.4; // yaw tolerance
-    ocm.weight = 1.0;
-
-    moveit_msgs::msg::Constraints path_constraints;
-    path_constraints.name = "face_maintenance_panel";
-    path_constraints.orientation_constraints.push_back(ocm);
-    move_group.setPathConstraints(path_constraints);
-    RCLCPP_INFO(logger, "Path constraints applied: manipulator forced to face maintenance panel.");
-  }
-
-  // Start from a known safe pose (upright)
-  {
-    RCLCPP_INFO(logger, "Moving to upright start pose...");
-    move_group.setJointValueTarget({0.0, 0.2, 0.0, 0.0, 0.0});
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-    if (move_group.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS) {
-      auto & traj = plan.trajectory_.joint_trajectory;
-      auto & points = traj.points;
-      if (points.size() >= 2 && points[1].time_from_start == rclcpp::Duration(0, 0)) {
-        for (size_t i = 0; i < points.size(); ++i) {
-          points[i].time_from_start = rclcpp::Duration::from_seconds(2.0 * i / (points.size() - 1));
-        }
-      }
-      auto goal = FollowJointTrajectoryAction::Goal();
-      goal.trajectory = traj;
-      auto goal_future = action_client->async_send_goal(goal);
-      if (executor.spin_until_future_complete(goal_future) != rclcpp::FutureReturnCode::SUCCESS) {
-        RCLCPP_WARN(logger, "Failed to send initial goal.");
-      } else {
-        auto goal_handle = goal_future.get();
-        if (goal_handle) {
-          auto result_future = action_client->async_get_result(goal_handle);
-          executor.spin_until_future_complete(result_future);
-        }
-      }
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-  }
-
-  // ── Base navigation to working position near panel (if not arm-only) ──
-  if (!arm_only && nav_client && nav_client->action_server_is_ready()) {
-    RCLCPP_INFO(logger, "--- Base navigation phase ---");
-    driveToPose("map", 0.8, 0.0, 0.0, nav_client, executor, logger);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-  }
-
-  int succeeded = 0;
-  int failed = 0;
-
-  for (const auto & tgt : kTargets) {
-    RCLCPP_INFO(logger, "--- Approaching '%s' (%.3f, %.3f, %.3f) ---",
-                tgt.name.c_str(), tgt.x, tgt.y, tgt.z);
-
-    if (force_panel_facing) {
-      geometry_msgs::msg::Pose target_pose;
-      target_pose.position.x = tgt.x;
-      target_pose.position.y = tgt.y;
-      target_pose.position.z = tgt.z;
-      target_pose.orientation = facing_orientation;
-      move_group.setPoseTarget(target_pose, "tool0");
-    } else {
-      move_group.setPositionTarget(tgt.x, tgt.y, tgt.z, "tool0");
+static bool sendTrajectory(
+    const trajectory_msgs::msg::JointTrajectory & traj,
+    rclcpp_action::Client<FollowJointTrajectoryAction>::SharedPtr & client,
+    const rclcpp::Node::SharedPtr & node,
+    const rclcpp::Logger & logger,
+    double expected_s,
+    const std::atomic<bool> & aruco_found)
+{
+    if (aruco_found.load()) { //verifica continua di questa condizione: continua a eseguire i movimenti decisi se non viene trovato alcun aruco dal python.
+        return false;
     }
 
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-    auto plan_result = move_group.plan(plan);
-
-    if (plan_result != moveit::core::MoveItErrorCode::SUCCESS) {
-      RCLCPP_WARN(logger, "Pose planning failed, trying position target...");
-      move_group.setPositionTarget(tgt.x, tgt.y, tgt.z, "tool0");
-      plan_result = move_group.plan(plan);
+    if (!client->action_server_is_ready()) {
+        RCLCPP_ERROR(
+            logger,
+            "Controller del braccio non disponibile."
+        );
+        return false;
     }
 
-    if (plan_result != moveit::core::MoveItErrorCode::SUCCESS) {
-      RCLCPP_WARN(logger, "Cartesian planning failed, trying joint-space fallback...");
-      move_group.setJointValueTarget({tgt.j1, tgt.j2, tgt.j3, tgt.jx, tgt.jy});
-      plan_result = move_group.plan(plan);
-    }
-
-    if (plan_result != moveit::core::MoveItErrorCode::SUCCESS) {
-      RCLCPP_WARN(logger, "Planning failed for '%s', skipping.", tgt.name.c_str());
-      ++failed;
-      continue;
-    }
-
-    auto & traj = plan.trajectory_.joint_trajectory;
-    auto & points = traj.points;
-    if (points.size() >= 2) {
-      if (points[1].time_from_start == rclcpp::Duration(0, 0)) {
-        double total_dur = 2.0;
-        for (size_t i = 0; i < points.size(); ++i) {
-          points[i].time_from_start = rclcpp::Duration::from_seconds(
-              total_dur * i / (points.size() - 1));
-        }
-      }
-    }
-
-    auto goal = FollowJointTrajectoryAction::Goal();
+    FollowJointTrajectoryAction::Goal goal;
     goal.trajectory = traj;
 
-    auto send_goal_future = action_client->async_send_goal(goal);
-    if (executor.spin_until_future_complete(send_goal_future, std::chrono::seconds(5))
-        != rclcpp::FutureReturnCode::SUCCESS) {
-      RCLCPP_WARN(logger, "Failed to send goal for '%s'.", tgt.name.c_str());
-      ++failed;
-      continue;
+    // Invia la traiettoria al controller
+    auto send_future = client->async_send_goal(goal);
+
+    if (!waitFuture(send_future, node, 5.0, 60.0)) {
+        RCLCPP_ERROR(
+            logger,
+            "Timeout nell'invio della traiettoria."
+        );
+        return false;
     }
 
-    auto goal_handle = send_goal_future.get();
+    auto goal_handle = send_future.get();
+
     if (!goal_handle) {
-      RCLCPP_WARN(logger, "Goal for '%s' was rejected.", tgt.name.c_str());
-      ++failed;
-      continue;
+        RCLCPP_ERROR(
+            logger,
+            "Traiettoria rifiutata dal controller."
+        );
+        return false;
     }
 
-    auto result_future = action_client->async_get_result(goal_handle);
-    if (executor.spin_until_future_complete(result_future, std::chrono::seconds(30))
-        != rclcpp::FutureReturnCode::SUCCESS) {
-      RCLCPP_WARN(logger, "Execution result not received for '%s'.", tgt.name.c_str());
-      ++failed;
-      continue;
+    auto result_future =
+        client->async_get_result(goal_handle);
+
+    const double sim_timeout = expected_s + 10.0;
+
+    const auto sim_deadline =
+        node->now() +
+        rclcpp::Duration::from_seconds(sim_timeout);
+
+    const auto wall_deadline =
+        std::chrono::steady_clock::now() +
+        std::chrono::duration<double>(
+            std::max(60.0, 20.0 * sim_timeout)
+        );
+
+    bool cancel_sent = false;
+
+    while (rclcpp::ok()) {
+
+        // La camera ha riconosciuto un ArUco.
+        if (aruco_found.load() && !cancel_sent) {
+
+            cancel_sent = true;
+
+            RCLCPP_WARN(
+                logger,
+                "ARUCO TROVATO: cancello la traiettoria!"
+            );
+
+            auto cancel_future =
+                client->async_cancel_goal(goal_handle);
+
+            if (!waitFuture(
+                    cancel_future, node, 5.0, 10.0)) {
+
+                RCLCPP_ERROR(
+                    logger,
+                    "Timeout richiesta cancellazione."
+                );
+                return false;
+            }
+
+            auto response = cancel_future.get();
+
+            if (response->goals_canceling.empty()) {
+
+                // Potrebbe essere gia' terminata.
+                if (result_future.wait_for(0ms) !=
+                    std::future_status::ready) {
+
+                    RCLCPP_WARN(
+                        logger,
+                        "Cancellazione non accettata dal controller."
+                    );
+                }
+            }
+
+            // Attendi conferma del risultato del goal
+            if (!waitFuture(
+                    result_future, node, 5.0, 10.0)) {
+
+                RCLCPP_WARN(
+                    logger,
+                    "Arresto non ancora confermato dal controller."
+                );
+
+                return false;
+            }
+
+            auto result = result_future.get();
+
+            RCLCPP_INFO(
+                logger,
+                "Risultato cancellazione: code=%d",
+                static_cast<int>(result.code)
+            );
+
+            return false;
+        }
+
+        // Movimento terminato normalmente
+        if (result_future.wait_for(20ms) ==
+            std::future_status::ready) {
+
+            auto result = result_future.get();
+
+            // Anche se il movimento e' terminato,
+            // non avviamo altri goal se il marker e' stato visto.
+            if (aruco_found.load()) {
+                return false;
+            }
+
+            if (result.code !=
+                rclcpp_action::ResultCode::SUCCEEDED) {
+
+                RCLCPP_ERROR(
+                    logger,
+                    "Traiettoria fallita: code=%d",
+                    static_cast<int>(result.code)
+                );
+
+                return false;
+            }
+
+            return true;
+        }
+
+        if (node->now() > sim_deadline ||
+            std::chrono::steady_clock::now() > wall_deadline) {
+
+            RCLCPP_ERROR(
+                logger,
+                "Timeout esecuzione traiettoria."
+            );
+
+            // Anche un timeout deve evitare che il
+            // controller continui a eseguire il goal.
+            auto cancel_future =
+                client->async_cancel_goal(goal_handle);
+
+            if (waitFuture(
+                    cancel_future, node, 5.0, 10.0)) {
+
+                auto response = cancel_future.get();
+
+                if (!response->goals_canceling.empty()) {
+                    waitFuture(
+                        result_future, node, 5.0, 10.0
+                    );
+                }
+            }
+
+            return false;
+        }
     }
 
-    auto result = result_future.get();
-    if (result.code != rclcpp_action::ResultCode::SUCCEEDED) {
-      RCLCPP_WARN(logger, "Execution failed for '%s'.", tgt.name.c_str());
-      ++failed;
-      continue;
+    return false;
+}
+
+
+// ==========================================================
+// MOVIMENTO MORBIDO NELLO SPAZIO DEI GIUNTI
+// ==========================================================
+
+static bool moveSmooth(
+    MoveGroupInterface & move_group,
+    const std::vector<std::string> & joint_names,
+    const std::vector<double> & goal,
+    rclcpp_action::Client<FollowJointTrajectoryAction>::SharedPtr & client,
+    const rclcpp::Logger & logger,
+    double joint_speed,
+    double min_time,
+    const rclcpp::Node::SharedPtr & node,
+    const std::atomic<bool> & aruco_found)
+{
+    if (aruco_found.load()) {
+        return false;
     }
 
-    RCLCPP_INFO(logger, "Reached '%s'.", tgt.name.c_str());
-    ++succeeded;
-    std::this_thread::sleep_for(std::chrono::milliseconds(800));
-  }
+    const auto start =
+        move_group.getCurrentJointValues();
 
-  RCLCPP_INFO(logger, "Demo complete: %d succeeded, %d failed.", succeeded, failed);
+    if (start.size() != goal.size() ||
+        joint_names.size() != goal.size()) {
 
-  if (failed > 0) {
-    RCLCPP_WARN(logger, "Some targets were not reached.");
-  }
+        RCLCPP_ERROR(
+            logger,
+            "Dimensioni dei giunti non valide."
+        );
 
-  rclcpp::shutdown();
-  return failed > 0 ? 1 : 0;
+        return false;
+    }
+
+    double max_delta = 0.0;
+
+    for (size_t j = 0; j < goal.size(); ++j) {
+
+        max_delta = std::max(
+            max_delta,
+            std::fabs(goal[j] - start[j])
+        );
+    }
+
+    // Profilo minimum jerk
+    const double T = std::max(
+        min_time,
+        1.875 * max_delta /
+        std::max(joint_speed, 1e-3)
+    );
+
+    const int N = std::max(
+        10,
+        static_cast<int>(std::ceil(T * 20.0))
+    );
+
+    trajectory_msgs::msg::JointTrajectory traj;
+    traj.joint_names = joint_names;
+
+    for (int k = 1; k <= N; ++k) {
+
+        const double tau =
+            static_cast<double>(k) /
+            static_cast<double>(N);
+
+        const double s =
+            tau * tau * tau *
+            (10.0 - 15.0 * tau + 6.0 * tau * tau);
+
+        const double ds =
+            (30.0 * tau * tau -
+             60.0 * tau * tau * tau +
+             30.0 * tau * tau * tau * tau) / T;
+
+        const double dds =
+            (60.0 * tau -
+             180.0 * tau * tau +
+             120.0 * tau * tau * tau) / (T * T);
+
+        trajectory_msgs::msg::JointTrajectoryPoint pt;
+
+        for (size_t j = 0; j < goal.size(); ++j) {
+
+            const double D = goal[j] - start[j];
+
+            pt.positions.push_back(
+                start[j] + D * s
+            );
+
+            pt.velocities.push_back(D * ds);
+            pt.accelerations.push_back(D * dds);
+        }
+
+        pt.time_from_start =
+            rclcpp::Duration::from_seconds(T * tau);
+
+        traj.points.push_back(pt);
+    }
+
+    traj.header.stamp = builtin_interfaces::msg::Time();
+
+    // Ultimo controllo prima dell'invio
+    if (aruco_found.load()) {
+        return false;
+    }
+
+    RCLCPP_INFO(
+        logger,
+        "Movimento: delta massimo %.2f rad, durata %.2f s",
+        max_delta,
+        T
+    );
+
+    return sendTrajectory(
+        traj,
+        client,
+        node,
+        logger,
+        T,
+        aruco_found
+    );
+}
+
+
+// ==========================================================
+// MAIN
+// ==========================================================
+
+int main(int argc, char ** argv)
+{
+    rclcpp::init(argc, argv);
+
+    rclcpp::NodeOptions options;
+    options.append_parameter_override(
+        "use_sim_time", true
+    );
+
+    auto node = std::make_shared<rclcpp::Node>(
+        "panel_interaction_demo",
+        options
+    );
+
+    auto logger = node->get_logger();
+
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+
+    std::thread spinner([&executor]() {
+        executor.spin();
+    });
+
+    auto finish = [&](int code) {
+
+        rclcpp::shutdown();
+
+        if (spinner.joinable()) {
+            spinner.join();
+        }
+
+        return code;
+    };
+
+
+    // ======================================================
+    // PARAMETRI
+    // ======================================================
+
+    node->declare_parameter<std::string>(
+        "trajectory_action_topic",
+        "/arm_controller/follow_joint_trajectory"
+    );
+
+    node->declare_parameter<double>(
+        "joint_speed", 0.5
+    );
+
+    node->declare_parameter<double>(
+        "min_move_time", 1.0
+    );
+
+    node->declare_parameter<double>(
+        "limit_margin", 0.05
+    );
+
+    node->declare_parameter<double>(
+        "max_arm_bend", 0.5
+    );
+
+    const auto traj_topic =
+        node->get_parameter(
+            "trajectory_action_topic"
+        ).as_string();
+
+    const double joint_speed =
+        node->get_parameter(
+            "joint_speed"
+        ).as_double();
+
+    const double min_move_time =
+        node->get_parameter(
+            "min_move_time"
+        ).as_double();
+
+    const double limit_margin =
+        std::clamp(
+            node->get_parameter(
+                "limit_margin"
+            ).as_double(),
+            0.0,
+            0.3
+        );
+
+    const double max_arm_bend =
+        std::max(
+            0.0,
+            node->get_parameter(
+                "max_arm_bend"
+            ).as_double()
+        );
+
+
+    // ======================================================
+    // RICONOSCIMENTO ARUCO
+    // ======================================================
+
+    std::atomic<bool> aruco_found{false};
+
+    auto marker_sub =
+        node->create_subscription<std_msgs::msg::Bool>(
+            "/panel/markers_detected",
+            10,
+            [&](const std_msgs::msg::Bool::SharedPtr msg) {
+
+                if (msg->data &&
+                    !aruco_found.exchange(true)) {
+
+                    RCLCPP_WARN(
+                        logger,
+                        "ARUCO RICONOSCIUTO! STOP RICERCA."
+                    );
+                }
+            }
+        );
+
+
+    // ======================================================
+    // CLIENT CONTROLLER BRACCIO
+    // ======================================================
+
+    auto action_client =
+        rclcpp_action::create_client<
+            FollowJointTrajectoryAction
+        >(node, traj_topic);
+
+    auto controller_deadline =
+        std::chrono::steady_clock::now() + 15s;
+
+    while (rclcpp::ok() &&
+           !action_client->action_server_is_ready() &&
+           std::chrono::steady_clock::now() <
+               controller_deadline) {
+
+        std::this_thread::sleep_for(50ms);
+    }
+
+    if (!action_client->action_server_is_ready()) {
+
+        RCLCPP_FATAL(
+            logger,
+            "Controller '%s' non disponibile.",
+            traj_topic.c_str()
+        );
+
+        return finish(2);
+    }
+
+
+    // ======================================================
+    // ATTESA STATO GIUNTI E CLOCK
+    // ======================================================
+
+    std::atomic<bool> joint_states_received{false};
+
+    auto sub_js =
+        node->create_subscription<
+            sensor_msgs::msg::JointState
+        >(
+            "/joint_states",
+            10,
+            [&](const sensor_msgs::msg::JointState::SharedPtr msg) {
+
+                if (!msg->position.empty()) {
+                    joint_states_received = true;
+                }
+            }
+        );
+
+    RCLCPP_INFO(
+        logger,
+        "Attendo stato giunti e clock Gazebo..."
+    );
+
+    while (rclcpp::ok() &&
+           (!joint_states_received.load() ||
+            node->now().seconds() == 0.0)) {
+
+        std::this_thread::sleep_for(20ms);
+    }
+
+    if (!rclcpp::ok()) {
+        return finish(130);
+    }
+
+
+    // ======================================================
+    // INIZIALIZZAZIONE MOVEIT
+    // ======================================================
+
+    MoveGroupInterface move_group(node, "arm");
+
+    move_group.setMaxVelocityScalingFactor(1.0);
+    move_group.setMaxAccelerationScalingFactor(1.0);
+    move_group.setPlanningTime(5.0);
+
+    const auto joint_names =
+        move_group.getActiveJoints();
+
+    const size_t n = joint_names.size();
+
+    if (n == 0) {
+
+        RCLCPP_ERROR(
+            logger,
+            "Nessun giunto nel gruppo arm."
+        );
+
+        return finish(2);
+    }
+
+    struct JointLimit {
+        double lo;
+        double hi;
+        bool bounded;
+    };
+
+    std::vector<JointLimit> limits;
+
+    auto robot_model = move_group.getRobotModel();
+
+    for (size_t i = 0; i < n; ++i) {
+
+        JointLimit limit{
+            -1e9,
+            1e9,
+            false
+        };
+
+        const auto * jm =
+            robot_model->getJointModel(joint_names[i]);
+
+        if (jm != nullptr &&
+            !jm->getVariableBounds().empty()) {
+
+            const auto & bounds =
+                jm->getVariableBounds()[0];
+
+            if (bounds.position_bounded_) {
+
+                limit.lo = bounds.min_position_;
+                limit.hi = bounds.max_position_;
+                limit.bounded = true;
+            }
+        }
+
+        limits.push_back(limit);
+    }
+
+
+    // ======================================================
+    // LIMITI GIUNTI
+    // ======================================================
+
+    auto clampToLimits =
+        [&](std::vector<double> q) {
+
+            for (size_t i = 0;
+                 i < q.size() && i < limits.size();
+                 ++i) {
+
+                if (!limits[i].bounded) {
+                    continue;
+                }
+
+                const double margin =
+                    limit_margin *
+                    (limits[i].hi - limits[i].lo);
+
+                q[i] = std::clamp(
+                    q[i],
+                    limits[i].lo + margin,
+                    limits[i].hi - margin
+                );
+            }
+
+            return q;
+        };
+
+    auto clampBend =
+        [&](std::vector<double> q) {
+
+            q = clampToLimits(q);
+
+            for (size_t i = 1;
+                 i <= 2 && i < q.size();
+                 ++i) {
+
+                q[i] = std::clamp(
+                    q[i],
+                    -max_arm_bend,
+                    max_arm_bend
+                );
+            }
+
+            return q;
+        };
+
+
+    // ======================================================
+    // FUNZIONE MOVIMENTO BRACCIO
+    // ======================================================
+
+    auto goTo =
+        [&](const std::vector<double> & q) {
+
+            if (aruco_found.load()) {
+                return false;
+            }
+
+            return moveSmooth(
+                move_group,
+                joint_names,
+                clampToLimits(q),
+                action_client,
+                logger,
+                joint_speed,
+                min_move_time,
+                node,
+                aruco_found
+            );
+        };
+
+
+    // ======================================================
+    // POSA INIZIALE
+    // ======================================================
+
+    std::vector<double> neutral(n, 0.0);
+
+    if (n > 1) {
+        neutral[1] = 0.2;
+    }
+
+    neutral = clampBend(neutral);
+
+    RCLCPP_INFO(
+        logger,
+        "Porto il braccio nella posa iniziale..."
+    );
+
+    if (!aruco_found.load()) {
+        if (!goTo(neutral) && !aruco_found.load()) {
+
+            RCLCPP_WARN(
+                logger,
+                "Posa iniziale non raggiunta."
+            );
+        }
+    }
+
+
+    // ======================================================
+    // SCANSIONE ARUCO
+    // ======================================================
+
+    const std::vector<std::vector<double>> scan_poses = {
+
+        { 1.0,   0.0,  0.0 },
+        {-1.57, -0.8,  0.2 },
+        { 0.0,   0.4,  0.4 },
+        {-0.4,   0.2,  0.2 },
+        {-0.8,   0.0,  0.0 }
+
+    };
+
+    RCLCPP_INFO(
+        logger,
+        "Inizio ricerca ArUco..."
+    );
+
+    for (size_t i = 0;
+         i < scan_poses.size() && rclcpp::ok();
+         ++i) {
+
+        // Marker gia' trovato: nessun altro movimento
+        if (aruco_found.load()) {
+            break;
+        }
+
+        std::vector<double> q(n, 0.0);
+
+        q[0] = scan_poses[i][0];
+
+        if (n > 2) {
+            q[1] = scan_poses[i][1];
+            q[2] = scan_poses[i][2];
+        }
+
+        q = clampBend(q);
+
+        RCLCPP_INFO(
+            logger,
+            "Scansione posa %zu/%zu",
+            i + 1,
+            scan_poses.size()
+        );
+
+        // Il movimento viene cancellato se arriva
+        // il segnale dal Python.
+        bool moved = goTo(q);
+
+        if (aruco_found.load()) {
+            break;
+        }
+
+        if (!moved) {
+
+            RCLCPP_WARN(
+                logger,
+                "Movimento di scansione fallito."
+            );
+
+            continue;
+        }
+
+        // Attesa per permettere alla camera di
+        // riconoscere il marker a braccio fermo.
+        const auto wait_end =
+            std::chrono::steady_clock::now() +
+            1200ms;
+
+        while (rclcpp::ok() &&
+               !aruco_found.load() &&
+               std::chrono::steady_clock::now() <
+                   wait_end) {
+
+            std::this_thread::sleep_for(20ms);
+        }
+    }
+
+
+    // ======================================================
+    // FINE RICERCA
+    // ======================================================
+
+    if (!rclcpp::ok()) {
+        return finish(130);
+    }
+
+    if (aruco_found.load()) {
+
+        RCLCPP_INFO(
+            logger,
+            "ARUCO TROVATO: ricerca interrotta."
+        );
+
+        RCLCPP_INFO(
+            logger,
+            "Il braccio non ricevera' altri movimenti."
+        );
+
+        // Manteniamo il nodo attivo.
+        // Non torniamo in neutral.
+        // Non avviamo la navigazione.
+        // Non eseguiamo i target del pannello.
+
+        while (rclcpp::ok()) {
+            std::this_thread::sleep_for(100ms);
+        }
+
+        return finish(0);
+    }
+
+    RCLCPP_WARN(
+        logger,
+        "Ricerca terminata: nessun ArUco trovato."
+    );
+
+    // Anche in questo caso nessun altro movimento.
+    while (rclcpp::ok()) {
+        std::this_thread::sleep_for(100ms);
+    }
+
+    return finish(1);
 }

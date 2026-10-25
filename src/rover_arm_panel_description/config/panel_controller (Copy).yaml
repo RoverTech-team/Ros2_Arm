@@ -1,0 +1,45 @@
+/**:
+  ros__parameters:
+    update_rate: 100
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    panel_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    joints:
+      - main_switch
+      - lever_switch_1
+      - lever_switch_2
+      - lever_switch_3
+      - lever_switch_4
+      - rotary_switch_1
+      - rotary_switch_2
+      - rotary_switch_3
+      - rotary_switch_4
+      - rotary_switch_5
+      - power_switch_1
+      - power_switch_2
+      - body_front_left_wheel_joint
+      - body_left_suspension_joint
+      - body_left_sub_suspension_joint
+      - body_right_suspension_joint
+      - body_right_sub_suspension_joint
+      - body_mid_left_wheel_joint
+      - body_rear_left_wheel_joint
+      - body_front_right_wheel_joint
+      - body_mid_right_wheel_joint
+      - body_rear_right_wheel_joint
+      - j1_joint
+      - j2_joint
+      - j3_joint
+      - ee_base_joint_x
+      - ee_base_joint_y
+      - slider_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    allow_partial_joints_goal: true

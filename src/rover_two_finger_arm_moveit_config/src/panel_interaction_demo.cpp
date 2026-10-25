@@ -193,7 +193,7 @@ int main(int argc, char ** argv) {
     move_group.setJointValueTarget({0.0, 0.2, 0.0, 0.0, 0.0});
     moveit::planning_interface::MoveGroupInterface::Plan plan;
     if (move_group.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS) {
-      auto & traj = plan.trajectory_.joint_trajectory;
+      auto & traj = plan.trajectory.joint_trajectory;
       auto & points = traj.points;
       if (points.size() >= 2 && points[1].time_from_start == rclcpp::Duration(0, 0)) {
         for (size_t i = 0; i < points.size(); ++i) {
@@ -262,7 +262,7 @@ int main(int argc, char ** argv) {
       continue;
     }
 
-    auto & traj = plan.trajectory_.joint_trajectory;
+    auto & traj = plan.trajectory.joint_trajectory;
     auto & points = traj.points;
     if (points.size() >= 2) {
       if (points[1].time_from_start == rclcpp::Duration(0, 0)) {

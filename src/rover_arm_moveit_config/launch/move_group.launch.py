@@ -94,6 +94,13 @@ def generate_launch_description():
         "merged_moveit_params.yaml",
     )
 
+    # 1. Definisci il percorso del nuovo file YAML
+    sensors_3d_file = os.path.join(
+        get_package_share_directory("rover_arm_moveit_config"),
+        "config",
+        "sensors_3d.yaml",
+    )
+
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
@@ -110,6 +117,7 @@ def generate_launch_description():
             robot_description,
             robot_description_semantic,
             moveit_params_file,
+            sensors_3d_file, # 2. Aggiungi il file ai parametri di MoveIt
         ],
         remappings=[("joint_states", joint_states_topic)],
     )

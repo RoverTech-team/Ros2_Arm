@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro" name="rover_arm_mounted">
   <xacro:include filename="$(find rover_arm_description)/urdf/rover_arm.urdf.xacro"/>
-
+  <xacro:include filename="camera_arm.urdf.xacro" />
   <link name="world"/>
   <link name="arm_base_link"/>
   <joint name="world_to_arm_base" type="fixed">

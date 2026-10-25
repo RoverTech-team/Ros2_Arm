@@ -1,0 +1,815 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="maintenance_panel">
+ <xacro:include filename="$(find rover_arm_panel_description)/urdf/panel.ros2_control.xacro"/>
+
+ <xacro:macro name="panel_description">
+
+ <link name="panel_base_frame">
+ <inertial>
+ <mass value="0.001"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+
+ <joint name="panel_base_frame_to_panel_base" type="fixed">
+ <parent link="panel_base_frame"/>
+ <child link="panel_base"/>
+    <origin xyz="1.5 0 0" rpy="0 0 1.571"/>
+ </joint>
+
+ <!-- ============================================= -->
+ <!-- ENCLOSURE: Sloped trapezoidal white body -->
+ <!-- Front face at Y=0, back extends in -Y -->
+ <!-- Bottom: ~180mm deep, Top: ~60mm deep -->
+ <!-- Mesh: trapezoidal prism, 8 vertices, 6 faces -->
+ <!-- ============================================= -->
+ <link name="panel_base">
+ <visual>
+ <origin xyz="0.165 -0.060 0.225" rpy="0 0 0"/>
+ <geometry>
+ <mesh filename="package://rover_arm_panel_description/meshes/visual/panel_base.dae"/>
+ </geometry>
+ <material name="white">
+ <color rgba="0.9 0.9 0.9 1"/>
+ </material>
+ </visual>
+ <collision>
+ <origin xyz="0.165 -0.060 0.225" rpy="0 0 0"/>
+ <geometry>
+ <mesh filename="package://rover_arm_panel_description/meshes/visual/panel_base.dae"/>
+ </geometry>
+ </collision>
+ <!-- Invisible support foot: extends the ground contact polygon under the
+      front-mounted parts (sockets, electromagnet, plate) whose mass center
+      projects in front of the trapezoid's leading edge (root x=1.5). Without
+      it the COM falls outside the support polygon and the panel tips over. -->
+ <collision name="front_foot">
+ <origin xyz="0.165 0.05 0.0" rpy="0 0 0"/>
+ <geometry>
+ <box size="0.40 0.10 0.01"/>
+ </geometry>
+ </collision>
+ <inertial>
+ <mass value="10.0"/>
+ <inertia ixx="0.738" ixy="0" ixz="0" iyy="1.038" iyz="0" izz="0.426"/>
+ </inertial>
+ </link>
+
+ <!-- ============================================ -->
+ <!-- ARUCO TAGS (top corners, above indicators) -->
+ <!-- ============================================ -->
+ <link name="aruco_tag_0">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.045 0.001 0.045"/></geometry>
+ <material name="white"/>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="aruco_tag_0_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="aruco_tag_0"/>
+ <origin xyz="0.050 0.001 0.405" rpy="0 0 0"/>
+ </joint>
+
+ <link name="aruco_tag_1">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.045 0.001 0.045"/></geometry>
+ <material name="white"/>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="aruco_tag_1_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="aruco_tag_1"/>
+ <origin xyz="0.280 0.001 0.405" rpy="0 0 0"/>
+ </joint>
+
+ <!-- ============================================ -->
+ <!-- INDICATORS (5 green spheres, evenly spaced) -->
+ <!-- ============================================ -->
+ <link name="indicator_1">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><sphere radius="0.008"/></geometry>
+ <material name="green_off">
+ <color rgba="0.2 0.5 0.2 1"/>
+ </material>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="indicator_1_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="indicator_1"/>
+ <origin xyz="0.075 0.005 0.375" rpy="0 0 0"/>
+ </joint>
+
+ <link name="indicator_2">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><sphere radius="0.008"/></geometry>
+ <material name="green_off"/>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="indicator_2_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="indicator_2"/>
+ <origin xyz="0.120 0.005 0.375" rpy="0 0 0"/>
+ </joint>
+
+ <link name="indicator_3">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><sphere radius="0.008"/></geometry>
+ <material name="green_off"/>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="indicator_3_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="indicator_3"/>
+ <origin xyz="0.165 0.005 0.375" rpy="0 0 0"/>
+ </joint>
+
+ <link name="indicator_4">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><sphere radius="0.008"/></geometry>
+ <material name="green_off"/>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="indicator_4_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="indicator_4"/>
+ <origin xyz="0.210 0.005 0.375" rpy="0 0 0"/>
+ </joint>
+
+ <link name="indicator_5">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><sphere radius="0.008"/></geometry>
+ <material name="green_off"/>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="indicator_5_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="indicator_5"/>
+ <origin xyz="0.255 0.005 0.375" rpy="0 0 0"/>
+ </joint>
+
+ <!-- ============================================ -->
+ <!-- TOGGLE SWITCHES (5 red lever type) -->
+ <!-- Axis 1 0 0 = pitch rotation (up/down toggle) -->
+ <!-- ============================================ -->
+ <!-- Main switch -->
+ <link name="main_switch_knob">
+ <visual>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ <material name="red">
+ <color rgba="0.8 0.1 0.1 1"/>
+ </material>
+ </visual>
+ <visual>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.006" length="0.008"/></geometry>
+ <material name="red"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.02"/>
+ <inertia ixx="2.8e-6" ixy="0" ixz="0" iyy="2.8e-6" iyz="0" izz="2.6e-6"/>
+ </inertial>
+ </link>
+ <joint name="main_switch" type="revolute">
+ <parent link="panel_base"/>
+ <child link="main_switch_knob"/>
+ <origin xyz="0.050 0.020 0.220" rpy="0 0 0"/>
+ <axis xyz="1 0 0"/>
+ <limit lower="-1.57" upper="1.57" effort="5.0" velocity="2.0"/>
+ </joint>
+
+ <!-- Lever switch 1 -->
+ <link name="lever_switch_1_knob">
+ <visual>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ <material name="red"/>
+ </visual>
+ <visual>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.006" length="0.008"/></geometry>
+ <material name="red"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.02"/>
+ <inertia ixx="2.8e-6" ixy="0" ixz="0" iyy="2.8e-6" iyz="0" izz="2.6e-6"/>
+ </inertial>
+ </link>
+ <joint name="lever_switch_1" type="revolute">
+ <parent link="panel_base"/>
+ <child link="lever_switch_1_knob"/>
+ <origin xyz="0.108 0.020 0.220" rpy="0 0 0"/>
+ <axis xyz="1 0 0"/>
+ <limit lower="-1.57" upper="1.57" effort="5.0" velocity="2.0"/>
+ </joint>
+
+ <!-- Lever switch 2 -->
+ <link name="lever_switch_2_knob">
+ <visual>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ <material name="red"/>
+ </visual>
+ <visual>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.006" length="0.008"/></geometry>
+ <material name="red"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.02"/>
+ <inertia ixx="2.8e-6" ixy="0" ixz="0" iyy="2.8e-6" iyz="0" izz="2.6e-6"/>
+ </inertial>
+ </link>
+ <joint name="lever_switch_2" type="revolute">
+ <parent link="panel_base"/>
+ <child link="lever_switch_2_knob"/>
+ <origin xyz="0.165 0.020 0.220" rpy="0 0 0"/>
+ <axis xyz="1 0 0"/>
+ <limit lower="-1.57" upper="1.57" effort="5.0" velocity="2.0"/>
+ </joint>
+
+ <!-- Lever switch 3 -->
+ <link name="lever_switch_3_knob">
+ <visual>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ <material name="red"/>
+ </visual>
+ <visual>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.006" length="0.008"/></geometry>
+ <material name="red"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.02"/>
+ <inertia ixx="2.8e-6" ixy="0" ixz="0" iyy="2.8e-6" iyz="0" izz="2.6e-6"/>
+ </inertial>
+ </link>
+ <joint name="lever_switch_3" type="revolute">
+ <parent link="panel_base"/>
+ <child link="lever_switch_3_knob"/>
+ <origin xyz="0.223 0.020 0.220" rpy="0 0 0"/>
+ <axis xyz="1 0 0"/>
+ <limit lower="-1.57" upper="1.57" effort="5.0" velocity="2.0"/>
+ </joint>
+
+ <!-- Lever switch 4 -->
+ <link name="lever_switch_4_knob">
+ <visual>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ <material name="red"/>
+ </visual>
+ <visual>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.006" length="0.008"/></geometry>
+ <material name="red"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0.0175 0" rpy="0 0 0"/>
+ <geometry><box size="0.008 0.035 0.006"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.02"/>
+ <inertia ixx="2.8e-6" ixy="0" ixz="0" iyy="2.8e-6" iyz="0" izz="2.6e-6"/>
+ </inertial>
+ </link>
+ <joint name="lever_switch_4" type="revolute">
+ <parent link="panel_base"/>
+ <child link="lever_switch_4_knob"/>
+ <origin xyz="0.280 0.020 0.220" rpy="0 0 0"/>
+ <axis xyz="1 0 0"/>
+ <limit lower="-1.57" upper="1.57" effort="5.0" velocity="2.0"/>
+ </joint>
+
+ <!-- ============================================ -->
+ <!-- DIN RAIL + ROTARY SWITCHES + POWER SWITCHES -->
+ <!-- ============================================ -->
+ <!-- DIN rail visual -->
+ <link name="din_rail">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.240 0.010 0.040"/></geometry>
+ <material name="metal">
+ <color rgba="0.6 0.6 0.6 1"/>
+ </material>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="din_rail_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="din_rail"/>
+ <origin xyz="0.165 0.025 0.300" rpy="0 0 0"/>
+ </joint>
+
+ <!-- Rotary switch 1 -->
+ <link name="rotary_switch_1_knob">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ <material name="black">
+ <color rgba="0.1 0.1 0.1 1"/>
+ </material>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.015"/>
+ <inertia ixx="1.3e-6" ixy="0" ixz="0" iyy="1.3e-6" iyz="0" izz="1.1e-6"/>
+ </inertial>
+ </link>
+ <joint name="rotary_switch_1" type="continuous">
+ <parent link="panel_base"/>
+ <child link="rotary_switch_1_knob"/>
+ <origin xyz="0.055 0.025 0.300" rpy="1.5708 0 0"/>
+ <axis xyz="0 0 1"/>
+ <limit effort="3.0" velocity="3.0"/>
+ </joint>
+
+ <!-- Rotary switch 2 -->
+ <link name="rotary_switch_2_knob">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ <material name="black"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.015"/>
+ <inertia ixx="1.3e-6" ixy="0" ixz="0" iyy="1.3e-6" iyz="0" izz="1.1e-6"/>
+ </inertial>
+ </link>
+ <joint name="rotary_switch_2" type="continuous">
+ <parent link="panel_base"/>
+ <child link="rotary_switch_2_knob"/>
+ <origin xyz="0.086 0.025 0.300" rpy="1.5708 0 0"/>
+ <axis xyz="0 0 1"/>
+ <limit effort="3.0" velocity="3.0"/>
+ </joint>
+
+ <!-- Rotary switch 3 -->
+ <link name="rotary_switch_3_knob">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ <material name="black"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.015"/>
+ <inertia ixx="1.3e-6" ixy="0" ixz="0" iyy="1.3e-6" iyz="0" izz="1.1e-6"/>
+ </inertial>
+ </link>
+ <joint name="rotary_switch_3" type="continuous">
+ <parent link="panel_base"/>
+ <child link="rotary_switch_3_knob"/>
+ <origin xyz="0.117 0.025 0.300" rpy="1.5708 0 0"/>
+ <axis xyz="0 0 1"/>
+ <limit effort="3.0" velocity="3.0"/>
+ </joint>
+
+ <!-- Rotary switch 4 -->
+ <link name="rotary_switch_4_knob">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ <material name="black"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.015"/>
+ <inertia ixx="1.3e-6" ixy="0" ixz="0" iyy="1.3e-6" iyz="0" izz="1.1e-6"/>
+ </inertial>
+ </link>
+ <joint name="rotary_switch_4" type="continuous">
+ <parent link="panel_base"/>
+ <child link="rotary_switch_4_knob"/>
+ <origin xyz="0.148 0.025 0.300" rpy="1.5708 0 0"/>
+ <axis xyz="0 0 1"/>
+ <limit effort="3.0" velocity="3.0"/>
+ </joint>
+
+ <!-- Rotary switch 5 -->
+ <link name="rotary_switch_5_knob">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ <material name="black"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.012" length="0.025"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.015"/>
+ <inertia ixx="1.3e-6" ixy="0" ixz="0" iyy="1.3e-6" iyz="0" izz="1.1e-6"/>
+ </inertial>
+ </link>
+ <joint name="rotary_switch_5" type="continuous">
+ <parent link="panel_base"/>
+ <child link="rotary_switch_5_knob"/>
+ <origin xyz="0.179 0.025 0.300" rpy="1.5708 0 0"/>
+ <axis xyz="0 0 1"/>
+ <limit effort="3.0" velocity="3.0"/>
+ </joint>
+
+ <!-- Power switch 1 -->
+ <link name="power_switch_1_knob">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.016" length="0.030"/></geometry>
+ <material name="red"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.016" length="0.030"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.02"/>
+ <inertia ixx="2.8e-6" ixy="0" ixz="0" iyy="2.8e-6" iyz="0" izz="2.6e-6"/>
+ </inertial>
+ </link>
+ <joint name="power_switch_1" type="continuous">
+ <parent link="panel_base"/>
+ <child link="power_switch_1_knob"/>
+ <origin xyz="0.210 0.025 0.300" rpy="1.5708 0 0"/>
+ <axis xyz="0 0 1"/>
+ <limit effort="3.0" velocity="3.0"/>
+ </joint>
+
+ <!-- Power switch 2 -->
+ <link name="power_switch_2_knob">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.016" length="0.030"/></geometry>
+ <material name="red"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.016" length="0.030"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.02"/>
+ <inertia ixx="2.8e-6" ixy="0" ixz="0" iyy="2.8e-6" iyz="0" izz="2.6e-6"/>
+ </inertial>
+ </link>
+ <joint name="power_switch_2" type="continuous">
+ <parent link="panel_base"/>
+ <child link="power_switch_2_knob"/>
+ <origin xyz="0.241 0.025 0.300" rpy="1.5708 0 0"/>
+ <axis xyz="0 0 1"/>
+ <limit effort="3.0" velocity="3.0"/>
+ </joint>
+
+ <!-- ============================================ -->
+ <!-- SOCKETS (lower section) -->
+ <!-- ============================================ -->
+ <!-- Grey socket -->
+ <link name="socket_grey">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.030 0.010 0.020"/></geometry>
+ <material name="grey_metal">
+ <color rgba="0.5 0.5 0.5 1"/>
+ </material>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.030 0.010 0.020"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="socket_grey_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="socket_grey"/>
+ <origin xyz="0.130 0.010 0.135" rpy="0 0 0"/>
+ </joint>
+
+ <!-- Pink connector 1 -->
+ <link name="socket_pink_1">
+ <visual>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.025" length="0.035"/></geometry>
+ <material name="pink">
+ <color rgba="0.9 0.4 0.5 1"/>
+ </material>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.025" length="0.035"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="socket_pink_1_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="socket_pink_1"/>
+ <origin xyz="0.200 0.035 0.135" rpy="0 0 0"/>
+ </joint>
+
+ <!-- Pink connector 2 -->
+ <link name="socket_pink_2">
+ <visual>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.025" length="0.035"/></geometry>
+ <material name="pink"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+ <geometry><cylinder radius="0.025" length="0.035"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="socket_pink_2_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="socket_pink_2"/>
+ <origin xyz="0.265 0.035 0.135" rpy="0 0 0"/>
+ </joint>
+
+ <!-- ============================================ -->
+ <!-- ELECTROMAGNET + METAL PLATE -->
+ <!-- ============================================ -->
+ <link name="electromagnet">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.035" length="0.020"/></geometry>
+ <material name="grey_metal"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><cylinder radius="0.035" length="0.020"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="electromagnet_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="electromagnet"/>
+ <origin xyz="0.240 0.030 0.050" rpy="0 0 0"/>
+ </joint>
+
+ <link name="metal_plate">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.100 0.003 0.080"/></geometry>
+ <material name="metal">
+ <color rgba="0.7 0.7 0.7 1"/>
+ </material>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.100 0.003 0.080"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.3"/>
+ <inertia ixx="1.6e-4" ixy="0" ixz="0" iyy="4.1e-4" iyz="0" izz="2.5e-4"/>
+ </inertial>
+ </link>
+ <joint name="metal_plate_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="metal_plate"/>
+ <origin xyz="0.240 0.035 0.075" rpy="0 0 0"/>
+ </joint>
+
+ <!-- ============================================ -->
+ <!-- BOTTOM LEFT BLACK CUTOUT -->
+ <!-- ============================================ -->
+ <link name="black_cutout">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.045 0.002 0.045"/></geometry>
+ <material name="dark_gray">
+ <color rgba="0.2 0.2 0.2 1"/>
+ </material>
+ </visual>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="black_cutout_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="black_cutout"/>
+ <origin xyz="0.060 -0.002 0.050" rpy="0 0 0"/>
+ </joint>
+
+ <!-- ============================================ -->
+ <!-- SIDE HANDLE (left wall) -->
+ <!-- ============================================ -->
+ <link name="side_handle">
+ <visual>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.020 0.030 0.150"/></geometry>
+ <material name="metal"/>
+ </visual>
+ <collision>
+ <origin xyz="0 0 0" rpy="0 0 0"/>
+ <geometry><box size="0.020 0.030 0.150"/></geometry>
+ </collision>
+ <inertial>
+ <mass value="0.05"/>
+ <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+ </inertial>
+ </link>
+ <joint name="side_handle_joint" type="fixed">
+ <parent link="panel_base"/>
+ <child link="side_handle"/>
+ <origin xyz="-0.010 -0.090 0.225" rpy="0 0 0"/>
+ </joint>
+
+ </xacro:macro>
+
+ <xacro:panel_description/>
+ <xacro:panel_ros2_control name="maintenance_panel" use_gazebo="$(optenv use_gazebo false)"/>
+
+  <!-- Gazebo-only tags -->
+  <xacro:if value="$(optenv use_gazebo false)">
+  <gazebo>
+<plugin name="gz_ros2_control::GazeboSimSystem" filename="gz_ros2_control-system">
+    <robot_param_node>panel_robot_state_publisher</robot_param_node>
+    <parameters>$(optenv panel_ctrl_yaml /tmp/panel_controller.yaml)</parameters>
+    <ros>
+      <namespace>panel</namespace>
+      <remapping>joint_states:=/panel/joint_states</remapping>
+    </ros>
+  </plugin>
+  </gazebo>
+
+  <!-- Lever switch plugins -->
+  <gazebo>
+  <plugin name="" filename="liblever_switch_plugin">
+    <joint>main_switch</joint>
+    <off_position>-1.57</off_position>
+    <on_position>1.57</on_position>
+    <detent_stiffness>0.4</detent_stiffness>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="liblever_switch_plugin">
+    <joint>lever_switch_1</joint>
+    <off_position>-1.57</off_position>
+    <on_position>1.57</on_position>
+    <detent_stiffness>0.4</detent_stiffness>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="liblever_switch_plugin">
+    <joint>lever_switch_2</joint>
+    <off_position>-1.57</off_position>
+    <on_position>1.57</on_position>
+    <detent_stiffness>0.4</detent_stiffness>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="liblever_switch_plugin">
+    <joint>lever_switch_3</joint>
+    <off_position>-1.57</off_position>
+    <on_position>1.57</on_position>
+    <detent_stiffness>0.4</detent_stiffness>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="liblever_switch_plugin">
+    <joint>lever_switch_4</joint>
+    <off_position>-1.57</off_position>
+    <on_position>1.57</on_position>
+    <detent_stiffness>0.4</detent_stiffness>
+  </plugin>
+  </gazebo>
+
+  <!-- Rotary switch plugins -->
+  <gazebo>
+  <plugin name="" filename="librotary_switch_plugin">
+    <joint>rotary_switch_1</joint>
+    <friction_torque>0.05</friction_torque>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="librotary_switch_plugin">
+    <joint>rotary_switch_2</joint>
+    <friction_torque>0.05</friction_torque>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="librotary_switch_plugin">
+    <joint>rotary_switch_3</joint>
+    <friction_torque>0.05</friction_torque>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="librotary_switch_plugin">
+    <joint>rotary_switch_4</joint>
+    <friction_torque>0.05</friction_torque>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="librotary_switch_plugin">
+    <joint>rotary_switch_5</joint>
+    <friction_torque>0.05</friction_torque>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="librotary_switch_plugin">
+    <joint>power_switch_1</joint>
+    <friction_torque>0.08</friction_torque>
+  </plugin>
+  </gazebo>
+
+  <gazebo>
+  <plugin name="" filename="librotary_switch_plugin">
+    <joint>power_switch_2</joint>
+    <friction_torque>0.08</friction_torque>
+  </plugin>
+  </gazebo>
+
+ <!-- Panel base friction -->
+ <gazebo reference="panel_base">
+ <mu1>0.8</mu1>
+ <mu2>0.8</mu2>
+ </gazebo>
+ </xacro:if>
+</robot>

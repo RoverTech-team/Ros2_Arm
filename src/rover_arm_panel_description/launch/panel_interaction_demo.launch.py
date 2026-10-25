@@ -76,7 +76,7 @@ def generate_launch_description():
                               description="Launch Gazebo Harmonic simulation for rover+arm physics")
     )
     declared_arguments.append(
-        DeclareLaunchArgument("force_panel_facing", default_value="true",
+        DeclareLaunchArgument("force_panel_facing", default_value="false",
                               description="Force planner to ensure manipulator end-effector always faces the maintenance panel")
     )
     use_nav2 = LaunchConfiguration("use_nav2")
@@ -105,7 +105,7 @@ def generate_launch_description():
         name="panel_ros2_control",
         parameters=[panel_description, panel_controllers],
         remappings=[
-            ("~/robot_description", "/panel/robot_description"),
+            ("robot_description", "/panel/robot_description"),
             ("joint_states", "/panel/joint_states"),
         ],
         output="both",
@@ -601,12 +601,20 @@ def generate_launch_description():
         )
     )
 
-    shutdown_on_demo_exit = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=interaction_demo_node,
-            on_exit=[Shutdown(reason="Demo finished")],
-        )
-    )
+# shutdown_on_demo_exit = RegisterEventHandler(
+#     event_handler=OnProcessExit(
+#         target_action=interaction_demo_node,
+#         # on_exit=[Shutdown(reason="Demo finished")],
+#     )
+# )
+
+    panel_static_tf = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="panel_static_tf",
+        arguments=["1.5", "0.0", "0.0", "0.0", "0.0", "0.0", "odom", "panel_base_frame"],
+    output="screen"
+)
 
     nodes = [
         panel_control_node,
@@ -651,9 +659,10 @@ def generate_launch_description():
 
         mock_delay_interaction_demo,
         gazebo_delay_interaction_demo,
-        shutdown_on_demo_exit,
+        # shutdown_on_demo_exit,
 
         rviz_node,
+        panel_static_tf,
     ]
 
     return LaunchDescription(declared_arguments + nodes)

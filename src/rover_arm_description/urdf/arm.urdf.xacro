@@ -21,6 +21,9 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
+  <!-- Inclusione della telecamera -->
+  <xacro:include filename="$(find rover_arm_description)/urdf/camera_arm.urdf.xacro" />
+
   <xacro:include filename="$(find rover_arm_description)/urdf/rover_arm.ros2_control.xacro" />
   <xacro:arm_ros2_control name="rover_arm" use_gazebo="$(optenv use_gazebo false)"/>
 

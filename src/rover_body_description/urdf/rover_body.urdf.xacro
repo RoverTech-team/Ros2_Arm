@@ -216,27 +216,6 @@
     </collision>
   </link>
 
-  <link name="camera_pole">
-      <visual>
-          <origin xyz="0 0 0" rpy="0 0 0"/>
-          <geometry>
-          <box size="${pole_width} ${pole_width} ${pole_height}"/> 
-          </geometry>
-          <material name="${prefix}links_color"/>
-      </visual>
-  </link>
-
-  <link name="camera">
-      <visual>
-          <origin xyz="0 0 0" rpy="0 0 0"/>
-          <geometry>
-          <box size="${camera_len} ${camera_width} ${camera_height}"/> 
-          </geometry>
-          <material name="${prefix}links_color"/>
-      </visual>
-  </link>
-
-
 
   <!-- 
        _  ____ _____ _   _ _______ _____ 
@@ -285,17 +264,6 @@
     <limit lower="${-pi / 2}" upper="${pi / 2}" effort="50.0" velocity="1.0"/>
   </joint>
 
-  <joint name="frame2camera_pole" type="fixed">
-      <parent link="base_link"/>
-      <child link="camera_pole"/>
-      <origin xyz="0 0.36 0.28" rpy="0 0 0"/>
-  </joint>
-
-  <joint name="camera_pole2camera" type="fixed">
-      <parent link="camera_pole"/>
-      <child link="camera"/>
-      <origin xyz="0 0 ${pole_height / 2}" rpy="0 0 0"/>
-  </joint>
 
 
 

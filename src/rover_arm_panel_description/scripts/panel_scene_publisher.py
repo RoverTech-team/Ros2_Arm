@@ -44,10 +44,10 @@ class PanelScenePublisher(Node):
 
             box = SolidPrimitive()
             box.type = SolidPrimitive.BOX
-            box.dimensions = [0.33, 0.20, 0.45]
+            box.dimensions = [0.33, 0.10, 0.45]
 
             pose = Pose()
-            pose.position.x = 1.560
+            pose.position.x = 1.650
             pose.position.y = 0.165
             pose.position.z = 0.225
             pose.orientation.x = q[0]
@@ -57,7 +57,7 @@ class PanelScenePublisher(Node):
 
             obj = CollisionObject()
             obj.id = 'panel_enclosure'
-            obj.header.frame_id = 'world'
+            obj.header.frame_id = 'odom'
             obj.header.stamp = self.get_clock().now().to_msg()
             obj.primitives = [box]
             obj.primitive_poses = [pose]

@@ -16,6 +16,10 @@
 
     joints:
       - body_front_left_wheel_joint
+      - body_left_suspension_joint
+      - body_left_sub_suspension_joint
+      - body_right_suspension_joint
+      - body_right_sub_suspension_joint
       - body_mid_left_wheel_joint
       - body_rear_left_wheel_joint
       - body_front_right_wheel_joint
@@ -51,7 +55,7 @@ diff_drive_controller:
     base_frame_id: "base_footprint"
     pose_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
     twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-    enable_odom_tf: false
+    enable_odom_tf: true
     publish_rate: 100.0
     linear.x.max_velocity: 100000.0
     linear.x.min_velocity: -100000.0

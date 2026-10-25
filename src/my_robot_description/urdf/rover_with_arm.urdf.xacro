@@ -8,21 +8,16 @@
     <xacro:include filename="$(find rover_arm_description)/urdf/rover_arm.ros2_control.xacro" />
     <xacro:include filename="$(find my_robot_description)/urdf/rover_body.ros2_control.xacro" />
 
-    <!-- rover base: world link is the root so RViz's world frame exists -->
-    <link name="world"/>
+<!-- rover base -->
     <link name="base_footprint"/>
     <link name="base_link"/>
-    <joint name="world_to_base_footprint" type="fixed">
-        <parent link="world"/>
-        <child link="base_footprint"/>
-        <origin xyz="0 0 0" rpy="0 0 0"/>
-    </joint>
+    
     <joint name="base_footprint_to_base_link" type="fixed">
         <parent link="base_footprint"/>
         <child link="base_link"/>
         <origin xyz="0 0 0" rpy="0 0 0"/>
     </joint>
-
+    
     <!-- rover body: detailed frame/suspensions/wheels, main link is body_frame -->
     <xacro:rover_body parent="base_link" prefix="body_">
         <origin xyz="0 0 0" rpy="0 0 0"/>

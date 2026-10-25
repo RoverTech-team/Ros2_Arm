@@ -6,6 +6,7 @@
     <joint name="j3_joint"/>
     <joint name="ee_base_joint_x"/>
     <joint name="ee_base_joint_y"/>
+    <joint name="ee_base_to_tool0"/>
   </group>
   <group name="arm_chain">
     <chain base_link="arm_base_link" tip_link="tool0"/>
@@ -26,7 +27,7 @@
     <joint name="ee_base_joint_x" value="0"/>
     <joint name="ee_base_joint_y" value="0"/>
   </group_state>
-  <virtual_joint name="world_to_base_footprint" type="fixed" parent_frame="world" child_link="base_footprint"/>
+  <virtual_joint name="world_to_base_footprint" type="floating" parent_frame="odom" child_link="base_footprint"/>
   <disable_collisions link1="arm_base_link" link2="base" reason="Adjacent"/>
   <disable_collisions link1="arm_base_link" link2="body_frame" reason="Never"/>
   <disable_collisions link1="base" link2="j1" reason="Adjacent"/>

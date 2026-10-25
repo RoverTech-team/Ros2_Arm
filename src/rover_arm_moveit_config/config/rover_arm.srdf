@@ -6,6 +6,7 @@
     <joint name="j3_joint"/>
     <joint name="ee_base_joint_x"/>
     <joint name="ee_base_joint_y"/>
+    <joint name="ee_base_to_tool0"/>
   </group>
   <group name="arm_chain">
     <chain base_link="arm_base_link" tip_link="tool0"/>

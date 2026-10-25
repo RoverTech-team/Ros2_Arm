@@ -21,6 +21,7 @@
       - rotary_switch_5
       - power_switch_1
       - power_switch_2
+
     command_interfaces:
       - position
     state_interfaces:
