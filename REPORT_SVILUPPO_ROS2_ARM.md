@@ -163,3 +163,7 @@ Questo report sintetizza gli appunti di sviluppo e il successivo test di compila
 
 
 
+ros2 launch rover_arm_panel_description   demo_rover_panel_depth.launch.py   use_gazebo:=true   auto_execute:=true   final_approach:=true   keep_visible:=true
+
+
+ros2 launch rover_arm_panel_description prova_demo.launch.py use_gazebo:=true trajectory_action_topic:=/arm_controller/follow_joint_trajectory use_sim_time:=trueA
