@@ -21,12 +21,27 @@
 <xacro:property name="j3_joint_pos" value="0.007 0 0.25"/>
 <xacro:property name="ee_base_joint_pos" value="-0.028 0 0.2715"/>
 <xacro:property name="slider_joint_pos" value="0 0.11 0"/>
-<xacro:property name="finger1_joint_pos" value="-0.052384 0.134522 -0.016965"/>
-<xacro:property name="finger1_joint_rotation" value="0 ${-pi / 6} 0"/>
-<xacro:property name="finger2_joint_pos" value="0.011500 0.134522 0.053848"/>
-<xacro:property name="finger2_joint_rotation" value="0 ${pi / 2} 0"/>
-<xacro:property name="finger3_joint_pos" value="0.040884 0.134522 -0.036883"/>
-<xacro:property name="finger3_joint_rotation" value="0 ${pi * 7 / 6} 0"/>
+
+<!--
+    GRIPPER ROLL OFFSET: rotation of the whole gripper (ee_base + slider + fingers) around the
+    approach axis (Y of ee_base). pi/2 -> the two fingers open horizontally (left/right) and
+    the top of the gripper stays free for the camera. Use -pi/2 to flip it, 0 for the old pose.
+  -->
+<xacro:property name="gripper_roll_offset" value="${pi / 2}"/>
+
+<!--
+    FINGERS (two-finger version, mesh in meshes/visual/two_finger_version):
+    the two fingers sit at x = +/-0.012, z = -/+0.055 of ee_base, facing each other
+    (same values as the rover_two_finger_arm_description package).
+    The 3-finger layout is kept on GitHub.
+  -->
+  <xacro:property name="finger1_rotation_offset" value="0 0 ${pi / 2}" />
+  <xacro:property name="finger2_rotation_offset" value="${pi} 0 ${pi / 2}" />
+  <xacro:property name="finger1_joint_pos" value="0.012017 0.156 -0.054914" />
+  <xacro:property name="finger1_joint_rotation" value="0 0 0" />
+  <xacro:property name="finger2_joint_pos" value="-0.012017 0.156 0.054914" />
+  <xacro:property name="finger2_joint_rotation" value="0 0 0" />
+
 <!-- COLORS -->
 <!-- links color -->
 <material name="${prefix}links_color">
@@ -187,7 +202,7 @@
 <visual>
 <origin xyz="0 0.018007 0" rpy="0 0 0"/>
 <geometry>
-<mesh filename="package://rover_arm_description/meshes/visual/end_effector_base.stl" scale="0.001 0.001 0.001"/>
+<mesh filename="package://rover_arm_description/meshes/visual/two_finger_version/end_effector_base.stl" scale="0.001 0.001 0.001"/>
 </geometry>
 <material name="${prefix}links_color"/>
 </visual>
@@ -209,7 +224,7 @@
 <visual>
 <origin xyz="0 0 0" rpy="0 0 0"/>
 <geometry>
-<mesh filename="package://rover_arm_description/meshes/visual/end_effector_slider.stl" scale="0.001 0.001 0.001"/>
+<mesh filename="package://rover_arm_description/meshes/visual/two_finger_version/end_effector_slider.stl" scale="0.001 0.001 0.001"/>
 </geometry>
 <material name="${prefix}links_color"/>
 </visual>
@@ -222,9 +237,9 @@
 <!-- finger 1 -->
 <link name="${prefix}ee_finger1">
 <visual>
-<origin xyz="0 0 0" rpy="0 0 0"/>
+<origin xyz="0 0 0" rpy="${finger1_rotation_offset}"/>
 <geometry>
-<mesh filename="package://rover_arm_description/meshes/visual/end_effector_finger.stl" scale="0.001 0.001 0.001"/>
+<mesh filename="package://rover_arm_description/meshes/visual/two_finger_version/end_effector_finger.stl" scale="0.001 0.001 0.001"/>
 </geometry>
 <material name="${prefix}links_color"/>
 </visual>
@@ -242,29 +257,9 @@
 <!-- finger 2 -->
 <link name="${prefix}ee_finger2">
 <visual>
-<origin xyz="0 0 0" rpy="0 0 0"/>
+<origin xyz="0 0 0" rpy="${finger2_rotation_offset}"/>
 <geometry>
-<mesh filename="package://rover_arm_description/meshes/visual/end_effector_finger.stl" scale="0.001 0.001 0.001"/>
-</geometry>
-<material name="${prefix}links_color"/>
-</visual>
-<collision>
-<origin xyz="0.016 ${0.14 / 2} ${- 0.022 / 2}" rpy="0 0 0"/>
-<geometry>
-<box size="0.042 0.14 0.022"/>
-</geometry>
-</collision>
-<inertial>
-<mass value="0.05"/>
-<inertia ixx="0.0005" ixy="0.0" ixz="0.0" iyy="0.0005" iyz="0.0" izz="0.0005"/>
-</inertial>
-</link>
-<!-- finger 3 -->
-<link name="${prefix}ee_finger3">
-<visual>
-<origin xyz="0 0 0" rpy="0 0 0"/>
-<geometry>
-<mesh filename="package://rover_arm_description/meshes/visual/end_effector_finger.stl" scale="0.001 0.001 0.001"/>
+<mesh filename="package://rover_arm_description/meshes/visual/two_finger_version/end_effector_finger.stl" scale="0.001 0.001 0.001"/>
 </geometry>
 <material name="${prefix}links_color"/>
 </visual>
@@ -349,7 +344,7 @@
 <joint name="${prefix}ee_base_joint_y" type="continuous">
 <parent link="${prefix}ee_base_dummy"/>
 <child link="${prefix}ee_base"/>
-<origin xyz="0 0 0" rpy="0 0 0"/>
+<origin xyz="0 0 0" rpy="0 ${gripper_roll_offset} 0"/>
 <!-- Rotation Axis -->
 <axis xyz="0 1 0"/>
 </joint>
@@ -369,8 +364,8 @@
 <parent link="${prefix}ee_base"/>
 <child link="${prefix}ee_finger1"/>
 <origin xyz="${finger1_joint_pos}" rpy="${finger1_joint_rotation}"/>
-<!-- Sliding Axis -->
-<axis xyz="0 0 1"/>
+<!-- Rotation Axis -->
+<axis xyz="-1 0 0"/>
 <!-- Limits -->
 <limit lower="0.0" upper="${finger_rotation_upper_bound}" effort="50.0" velocity="1.0"/>
 <mimic joint="${prefix}slider_joint" multiplier="${relation_multip}" offset="0.0"/>
@@ -381,21 +376,11 @@
 <child link="${prefix}ee_finger2"/>
 <origin xyz="${finger2_joint_pos}" rpy="${finger2_joint_rotation}"/>
 <!-- Sliding Axis -->
-<axis xyz="0 0 1"/>
+<axis xyz="1 0 0"/>
 <!-- Limits -->
 <limit lower="0.0" upper="${finger_rotation_upper_bound}" effort="50.0" velocity="1.0"/>
 <mimic joint="${prefix}slider_joint" multiplier="${relation_multip}" offset="0.0"/>
 </joint>
-<!-- finger 3 joint-->
-<joint name="${prefix}finger3_joint" type="revolute">
-<parent link="${prefix}ee_base"/>
-<child link="${prefix}ee_finger3"/>
-<origin xyz="${finger3_joint_pos}" rpy="${finger3_joint_rotation}"/>
-<!-- Sliding Axis -->
-<axis xyz="0 0 1"/>
-<!-- Limits -->
-<limit lower="0.0" upper="${finger_rotation_upper_bound}" effort="50.0" velocity="1.0"/>
-<mimic joint="${prefix}slider_joint" multiplier="${relation_multip}" offset="0.0"/>
-</joint>
+
 </xacro:macro>
 </robot>

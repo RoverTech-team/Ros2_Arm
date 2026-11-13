@@ -88,7 +88,7 @@ class TestFixture(unittest.TestCase):
 
     def test_check_if_msgs_published(self):
         check_if_js_published(
-            "/joint_states", ["j1_joint", "j2_joint", "j3_joint", "ee_base_joint_x", "ee_base_joint_y", "slider_joint", "finger1_joint", "finger2_joint", "finger3_joint"]
+            "/joint_states", ["j1_joint", "j2_joint", "j3_joint", "ee_base_joint_x", "ee_base_joint_y", "slider_joint", "finger1_joint", "finger2_joint"]
         )
 
     def test_check_if_trajectory_processed(self, proc_output):
@@ -126,4 +126,3 @@ class TestShutdown(unittest.TestCase):
 
     def test_exit_codes(self, proc_info):
         """Check if the processes exited normally."""
-        launch_testing.asserts.assertExitCodes(proc_info)

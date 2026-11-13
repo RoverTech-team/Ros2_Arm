@@ -27,10 +27,12 @@ install(DIRECTORY
     DESTINATION share/${PROJECT_NAME}
 )
 
+
 install(
   PROGRAMS
     scripts/panel_gui.py
     scripts/panel_scene_publisher.py
+    scripts/test_aruco_depth_search_center.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

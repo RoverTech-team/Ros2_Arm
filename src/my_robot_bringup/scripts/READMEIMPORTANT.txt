@@ -1,0 +1,1 @@
+---All the files "copy" here refers to the same file but compatible with humble; Since I've developed everything on jazzy, i had to change some files. 

@@ -1,0 +1,65 @@
+Per vedere dove la camera si aspetta di vedere la leva da solvepnp, runnare questo
+
+rm -f /tmp/lever_view_*.png
+xdg-open /tmp/lever_view_00.png
+
+il mirino punta giusto ma la vista è coperta dalle dita. PEnsavo che il problema fosse proprio che le dita coprono lo switch, ma togliendole il problema è rimasto
+
+
+<!-- finger 1 -->
+<link name="${prefix}ee_finger1">
+<xacro:if value="false">   !!!qua per togliere le dita
+<visual>
+<origin xyz="0 0 0" rpy="${finger1_rotation_offset}"/>
+<geometry>
+<mesh filename="package://rover_arm_description/meshes/visual/two_finger_version/end_effector_finger.stl" scale="0.001 0.001 0.001"/>
+</geometry>
+<material name="${prefix}links_color"/>
+</visual>
+</xacro:if>
+<collision>
+<origin xyz="0.016 ${0.14 / 2} ${- 0.022 / 2}" rpy="0 0 0"/>
+<geometry>
+<box size="0.042 0.14 0.022"/>
+</geometry>
+</collision>
+<inertial>
+<mass value="0.05"/>
+<inertia ixx="0.0005" ixy="0.0" ixz="0.0" iyy="0.0005" iyz="0.0" izz="0.0005"/>
+</inertial>
+</link>
+<!-- finger 2 -->
+<link name="${prefix}ee_finger2">
+<xacro:if value="false">
+<visual>
+<origin xyz="0 0 0" rpy="${finger2_rotation_offset}"/>
+<geometry>
+<mesh filename="package://rover_arm_description/meshes/visual/two_finger_version/end_effector_finger.stl" scale="0.001 0.001 0.001"/>
+</geometry>
+<material name="${prefix}links_color"/>
+</visual>
+</xacro:if>
+<collision>
+<origin xyz="0.016 ${0.14 / 2} ${- 0.022 / 2}" rpy="0 0 0"/>
+<geometry>
+<box size="0.042 0.14 0.022"/>
+</geometry>
+</collision>
+<inertial>
+<mass value="0.05"/>
+<inertia ixx="0.0005" ixy="0.0" ixz="0.0" iyy="0.0005" iyz="0.0" izz="0.0005"/>
+</inertial>
+</link>
+<!--
+ 
+ togliere xacro:if se si vuole riavere le dita. io le ho tolte per lavorare prima con depth e poi con la orientazione.
+ Cosi tolgo le dita
+ Le ho rimesse per evitare di spaventare chi avvia la demo, ma se volete toglierle per provare anche voi a fare debug fate pure
+ 
+ il main switch è dove ci si aspetta ma depth non lo riconosce. non capisco come mai.
+ 
+ quindi prossimo step è capire come mai depth non riconosce la leva nonostante sia visibile e  nonostante sia esattamente dove ci si aspetta con solve PNP...
+ 
+ i problemi potrebbero essere o legati al codice che magari vede il pulsante ma non lo restituisce nei log (sarebbe da esplicitare meglio un mirino se viene visto il pulsante, lho famtto ma di fretta e non ho avuto modo di rivederlo). 
+ Altrimenti il problema potrebbe essere che prima, per stimare la presenza dei pulsanti, usavamo rgb+deph. RGB però a breve distanza fa schifo: sarebbe da vedere questo e semmai togliere rgb e dire alla camera di fare solo con depth, perche se chiaramente le dici "cerca la zona rossa qua attorno" ma la zona rossa non la vede, non potra neanche partire con depth. 
+ 

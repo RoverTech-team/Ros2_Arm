@@ -1,85 +1,255 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="gemini_camera">
 
-  <!-- 1. Link fisico della telecamera con box dimensionato correttamente -->
+  <!--
+    ORBBEC GEMINI 305
+
+    Dimensioni: 42 x 42 x 23 mm
+    Massa: 68 g
+
+    Convenzione degli assi:
+      +X_link : alto della camera
+      -Y_link : direzione di osservazione
+      +Z_link : destra dell'immagine
+
+    La profondita' fisica di 23 mm e' lungo Y.
+  -->
+
+  <!-- =========================================== -->
+  <!-- 1. CORPO FISICO DELLA CAMERA                -->
+  <!-- =========================================== -->
+
   <link name="gemini_camera_link">
+
     <visual>
-      <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+
       <geometry>
-        <box size="0.042 0.042 0.04"/>
+        <box size="0.042 0.023 0.042"/>
       </geometry>
+
       <material name="dark_grey">
         <color rgba="0.2 0.2 0.2 1.0"/>
       </material>
     </visual>
 
+    <!-- Collisione con dimensioni reali -->
+
     <collision>
-      <origin xyz="0.0 0 0.0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+
       <geometry>
-        <box size="0.0015 0.0035 0.0035"/>
+        <box size="0.042 0.023 0.042"/>
       </geometry>
     </collision>
 
+    <!--
+      Massa ufficiale Gemini 305: 68 g.
+
+      Inerzia approssimata come parallelepipedo
+      omogeneo rispetto al proprio centro di massa.
+    -->
+
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <mass value="0.116"/>
-      <inertia ixx="0.000020" ixy="0.0" ixz="0.0" iyy="0.000013" iyz="0.0" izz="0.000013"/>
+
+      <mass value="0.068"/>
+
+      <inertia
+        ixx="0.000012993667"
+        ixy="0.0"
+        ixz="0.0"
+        iyy="0.000019992000"
+        iyz="0.0"
+        izz="0.000012993667"/>
     </inertial>
+
   </link>
 
-  <!-- 2. Giunto di ancoraggio al centro delle dita (ee_base), senza sballare le coordinate -->
+
+  <!-- =========================================== -->
+  <!-- 2. MONTAGGIO DELLA CAMERA SUL BRACCIO       -->
+  <!-- =========================================== -->
+
+  <!--
+    Manteniamo il montaggio originale su ee_base.
+
+    La camera viene orientata in modo che
+    la direzione di osservazione sia +Y di ee_base.
+
+    Il montaggio dovra' essere verificato
+    fisicamente prima delle prove di contatto.
+  -->
+
   <joint name="camera_rover_mount_joint" type="fixed">
-    <parent link="ee_base"/> 
+
+    <parent link="ee_base"/>
+
     <child link="gemini_camera_link"/>
-    <!-- Posizionata dritta nel palmo, a 2 centimetri in avanti -->
-    <origin xyz="0.0 0.14 0.01" rpy="0 -1.57 3.14"/> 
+
+    <origin
+      xyz="0.03 0.09 0.0"
+      rpy="0 0 3.141593"/>
+
   </joint>
 
-  <!-- 3. Link e giunto ottico per i topic RGBD -->
+
+  <!-- =========================================== -->
+  <!-- 3. FRAME OTTICO DELLA CAMERA               -->
+  <!-- =========================================== -->
+
+  <!--
+    Convenzione ROS Optical Frame:
+
+    +X: destra nell'immagine
+    +Y: basso nell'immagine
+    +Z: direzione di osservazione
+
+    Il corpo e' centrato nell'origine del link.
+
+    La superficie anteriore si trova a:
+    Y = -0.0115 m
+
+    Il datasheet indica che l'origine depth
+    si trova circa 3.95 mm dietro il vetro.
+
+    Pertanto, assumendo il corpo centrato:
+    Y = -0.0115 + 0.00395 = -0.00755 m
+
+    L'offset trasversale dell'ottica non e'
+    modellato: richiede il CAD/calibrazione.
+  -->
+
   <link name="gemini_camera_optical_frame"/>
-  
+
   <joint name="camera_optical_joint" type="fixed">
+
     <parent link="gemini_camera_link"/>
+
     <child link="gemini_camera_optical_frame"/>
-    <origin xyz="0 0 0" rpy="1.570796 -1.570796 0"/>
+
+    <origin
+      xyz="0 -0.00755 0"
+      rpy="1.570796 -1.570796 0"/>
+
   </joint>
-  
-  <!-- Previene la fusione del giunto fisico -->
+
+
+  <!-- =========================================== -->
+  <!-- 4. PRESERVAZIONE DEI JOINT IN GAZEBO        -->
+  <!-- =========================================== -->
+
   <gazebo reference="camera_rover_mount_joint">
+
     <preserveFixedJoint>true</preserveFixedJoint>
+
   </gazebo>
 
-  <!-- Previene la fusione del giunto ottico -->
   <gazebo reference="camera_optical_joint">
+
     <preserveFixedJoint>true</preserveFixedJoint>
+
   </gazebo>
 
-  <!-- 4. Definizione del sensore Gazebo -->
-<gazebo reference="gemini_camera_link">
-  <sensor name="gemini_camera" type="rgbd_camera">
-    <pose>0 0 0 -1.570796 0 -1.570796</pose>
-    <frame_id>gemini_camera_optical_frame</frame_id>
-    <always_on>true</always_on>
-    <update_rate>30.0</update_rate>
-    <topic>/camera/rgbd</topic>
 
-    <camera>
-      <!-- FOV orizzontale RGB: 94 gradi -->
-      <horizontal_fov>1.64061</horizontal_fov>
+  <!-- =========================================== -->
+  <!-- 5. SENSORE GEMINI 305 IN GAZEBO HARMONIC    -->
+  <!-- =========================================== -->
 
-      <!-- Risoluzione RGB Gemini 305 -->
-      <image>
-        <width>1280</width>
-        <height>800</height>
-      </image>
+  <!--
+    Sensore RGBD con due flussi:
 
-      <clip>
-        <near>0.2</near>
-        <far>1.0</far>
-      </clip>
+    RGB:
+      Riconoscimento ArUco e pulsanti.
 
-      <optical_frame_id>gemini_camera_optical_frame</optical_frame_id>
-    </camera>
-  </sensor>
-</gazebo>
+    DEPTH:
+      Misurazione delle distanze.
+
+    Specifiche depth:
+      1280 x 800 pixel
+      30 FPS
+      FOV orizzontale 88 gradi
+      Distanza minima 0.05 m
+      Distanza massima 1.0 m
+
+    La distanza minima corrisponde alla modalita'
+    Close-Range con disparity search range 256.
+
+    Gazebo utilizza un sensore virtuale.
+    Non simula il vero matching stereo Orbbec.
+
+    Il FOV RGB reale e' di 94 gradi,
+    ma qui utilizziamo 88 gradi per entrambi
+    i flussi per mantenere l'allineamento.
+  -->
+
+  <gazebo reference="gemini_camera_link">
+
+    <sensor name="gemini_camera" type="rgbd_camera">
+
+      <!--
+        Il sensore Gazebo guarda lungo +X_sensor.
+        Questa rotazione lo orienta lungo -Y_link.
+
+        La traslazione e' identica
+        a quella del frame ottico.
+      -->
+
+      <pose>
+        0 -0.00755 0 -1.570796 0 -1.570796
+      </pose>
+
+      <always_on>true</always_on>
+
+      <update_rate>30.0</update_rate>
+
+      <topic>/camera/rgbd</topic>
+
+      <gz_frame_id>
+        gemini_camera_optical_frame
+      </gz_frame_id>
+
+      <camera>
+
+        <!-- FOV orizzontale depth: 88 gradi -->
+
+        <horizontal_fov>1.535890</horizontal_fov>
+
+        <!-- Risoluzione immagini -->
+
+        <image>
+          <width>1280</width>
+          <height>800</height>
+        </image>
+
+        <!-- Clipping del rendering -->
+
+        <clip>
+          <near>0.05</near>
+          <far>1.0</far>
+        </clip>
+
+        <!-- Limiti specifici della depth -->
+
+        <depth_camera>
+
+          <clip>
+            <near>0.05</near>
+            <far>1.0</far>
+          </clip>
+
+        </depth_camera>
+
+        <!-- Frame ottico ROS -->
+
+        <optical_frame_id>
+          gemini_camera_optical_frame
+        </optical_frame_id>
+
+      </camera>
+
+    </sensor>
+
+  </gazebo>
+
 </robot>

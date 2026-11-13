@@ -37,9 +37,10 @@
   <disable_collisions link1="j3" link2="ee_base" reason="Never"/>
   <disable_collisions link1="j2" link2="ee_base" reason="Never"/>
   <disable_collisions link1="ee_base" link2="ee_slider" reason="Adjacent"/>
+  <disable_collisions link1="ee_base" link2="ee_finger1" reason="Adjacent"/>
+  <disable_collisions link1="ee_base" link2="ee_finger2" reason="Adjacent"/>
   <disable_collisions link1="ee_slider" link2="ee_finger1" reason="Adjacent"/>
   <disable_collisions link1="ee_slider" link2="ee_finger2" reason="Adjacent"/>
-  <disable_collisions link1="ee_slider" link2="ee_finger3" reason="Adjacent"/>
   <disable_collisions link1="arm_base_link" link2="j2" reason="Never"/>
   <passive_joint name="mount_joint"/>
 </robot>

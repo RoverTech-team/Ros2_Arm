@@ -4,6 +4,8 @@
 GenericSystem mock does not propagate <mimic> tags, so fingers stay at 0.
 This node subscribes to /joint_states_raw (broadcaster) and republishes to
 /joint_states with fingers computed as slider * (pi/2 / 0.05).
+
+Two-finger gripper: finger1_joint and finger2_joint.
 """
 import math
 import rclpy
@@ -11,7 +13,9 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState
 
 SLIDER = "slider_joint"
-FINGERS_DEFAULT = ["finger1_joint", "finger2_joint", "finger3_joint"]
+FINGERS_DEFAULT = ["finger1_joint", "finger2_joint"]
+# Joints of the old 3-finger gripper: never published, dropped if they show up in the input
+LEGACY_FINGERS = ["finger3_joint"]
 MULT = (math.pi / 2.0) / 0.05  # 31.4159
 FINGER_LIMIT = (0.0, math.pi / 2.0)
 
@@ -38,7 +42,7 @@ class MimicBridge(Node):
         if num_fingers > 0:
             self.fingers = FINGERS_DEFAULT[: max(0, min(num_fingers, len(FINGERS_DEFAULT)))]
         else:
-            # filter to known fingers to avoid typos
+            # filter to known fingers to avoid typos (finger3_joint is ignored)
             self.fingers = [f for f in fingers_param if f in FINGERS_DEFAULT]
             if not self.fingers:
                 self.fingers = FINGERS_DEFAULT
@@ -67,17 +71,11 @@ class MimicBridge(Node):
             name_to_pos[f] = finger_val
             name_to_vel[f] = 0.0
             name_to_eff[f] = 0.0
-        # remove stale fingers (e.g., 3-finger state when running 2-finger variant)
-        for stale in FINGERS_DEFAULT:
-            if stale not in self.fingers and stale in name_to_pos:
-                # keep if original msg already had it? For 2-finger we drop extra finger
-                if stale not in msg.name or stale in self.fingers:
-                    continue
-                # only drop if we are in 2-finger mode and stale is finger3
-                if len(self.fingers) == 2 and stale == "finger3_joint":
-                    del name_to_pos[stale]
-                    name_to_vel.pop(stale, None)
-                    name_to_eff.pop(stale, None)
+        # drop joints of the old 3-finger gripper if present in the input
+        for legacy in LEGACY_FINGERS:
+            name_to_pos.pop(legacy, None)
+            name_to_vel.pop(legacy, None)
+            name_to_eff.pop(legacy, None)
         # ensure slider still present
         out.name = list(name_to_pos.keys())
         out.position = [float(name_to_pos[n]) for n in out.name]

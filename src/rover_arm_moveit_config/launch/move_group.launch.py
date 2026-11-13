@@ -26,7 +26,7 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "moveit_config_package",
+            "moveit_config_package", 
             default_value="rover_arm_moveit_config",
             description="MoveIt2 config package.",
         )
@@ -93,9 +93,13 @@ def generate_launch_description():
         "config",
         "merged_moveit_params.yaml",
     )
-
+    moveit_common_params_file = os.path.join(
+    get_package_share_directory("rover_arm_moveit_config"),
+    "config",
+    "moveit_common_params.yaml", #aggiunto questo nella versione principale. il problema dell'orientamento potrebbe essere qua
+    )
     # 1. Definisci il percorso del nuovo file YAML
-    sensors_3d_file = os.path.join(
+    sensors_3d_file = os.path.join( #qua ho aggiunto i sensori 3D. 
         get_package_share_directory("rover_arm_moveit_config"),
         "config",
         "sensors_3d.yaml",
@@ -117,6 +121,7 @@ def generate_launch_description():
             robot_description,
             robot_description_semantic,
             moveit_params_file,
+            moveit_common_params_file,
             sensors_3d_file, # 2. Aggiungi il file ai parametri di MoveIt
         ],
         remappings=[("joint_states", joint_states_topic)],

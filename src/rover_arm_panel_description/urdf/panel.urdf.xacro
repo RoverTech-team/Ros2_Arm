@@ -83,7 +83,7 @@
        <diffuse>1 1 1 1</diffuse>
        <pbr>
          <metal>
-           <albedo_map>/home/livia/ros2_ws/src/Ros2_Arm/src/rover_arm_panel_description/materials/textures/aruco_0.png</albedo_map>
+           <albedo_map>$(find rover_arm_panel_description)/materials/textures/aruco_0.png</albedo_map>
          </metal>
        </pbr>
      </material>
@@ -115,7 +115,7 @@
        <diffuse>1 1 1 1</diffuse>
        <pbr>
          <metal>
-           <albedo_map>/home/livia/ros2_ws/src/Ros2_Arm/src/rover_arm_panel_description/materials/textures/aruco_1.png</albedo_map>
+           <albedo_map>$(find rover_arm_panel_description)/materials/textures/aruco_1.png</albedo_map>
          </metal>
        </pbr>
      </material>
