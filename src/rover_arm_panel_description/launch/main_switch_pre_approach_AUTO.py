@@ -123,6 +123,15 @@ MIN_VIEW_MARGIN_PX = 60.0      # la leva deve stare ad almeno 60 px dal bordo im
 CAMERA_MIN_DEPTH_M = 0.10      # leva piu vicina di cosi alla camera = scartata. DA TARARE sul clip "near" della camera nell'SDF
 MIN_OCCLUSION_CLEAR_PX = 8.0   # la leva deve stare ad almeno 8 px dal bordo del dito proiettato
 FINGER_RADIUS_M = 0.022        # raggio del dito nel modello di occlusione (box ~4.2 x 2.2 cm)
+# ---- ROLL DEL POLSO (ee_base_joint_y) ----
+# La camera e' montata sotto il polso: ruotando l'asse di approccio le dita
+# escono dal campo visivo. Provato sulle migliori candidate di pitch.
+ROLL_GRID_RAD = (0.6, -0.6, 1.2, -1.2)
+ROLL_VARIANTS_FROM = 3         # quante candidate di pitch raffinare col roll
+# ---- GRIPPER ----
+# Apertura dita (slider_joint, limiti URDF -0.01..0.06; le dita mimano con
+# multiplier ~31.4 rad/m, quindi 0.04 m = ~1.26 rad di apertura per dito).
+GRIPPER_OPEN_POS = 0.04
 
 LEVER_NAMES = tuple(f'lever_switch_{i}' for i in range(1, 5)) #genera array con le leve
 POSE_MAX_AGE_S = 180.0         # se il rover è stato fermo piu di 3 min, chiede una nuova acquisizione
@@ -758,6 +767,59 @@ class Test(Node): #sto nodo ascolta l'ambiente, decide la traiettoria chiamando 
                   'RIPIEGO: uso la IK normale senza garanzia di visibilita.', flush=True)
             return [tuple(float(v) for v in original_goal)]
 
+        # ---- VARIANTI DI ROLL sulle migliori candidate di pitch ----
+        # Le candidate sopra hanno tutte roll=0 (q[4]=0): con la camera sotto
+        # il polso le dita restano davanti alla leva. Qui si ruota l'asse di
+        # approccio (ee_base_joint_y) tenendo la punta sul target, con IK a
+        # roll FISSO (free=[0,1,2,3]), e si rivaluta la visibilita'.
+        roll_from = sorted(valid, key=lambda item: (-item[2]['occ'], item[0]))
+        roll_from = roll_from[:ROLL_VARIANTS_FROM]
+        for _, _, _, q_pitch, _ in roll_from:
+            for phi in ROLL_GRID_RAD:
+                seed = np.asarray(q_pitch, dtype=float).copy()
+                seed[4] = phi
+                err, q = self.solve_ik(seed, q0, goal, state,
+                                       stop_tolerance=.004, free=[0, 1, 2, 3])
+                q[4] = phi
+                evaluated += 1
+                tag = f'  roll={phi:+.2f}'
+                if err > .010:
+                    print(f'{tag}: punta non raggiungibile con questo roll '
+                          f'(errore {err*100:.1f} cm)', flush=True)
+                    continue
+                rs = put_joints(state, q)
+                # Verifica con la STESSA FK usata dalla pianificazione (non
+                # solo con il residuo interno del solver): se la punta non e'
+                # sul target qui, la candidata verrebbe scartata dopo.
+                err_real = math.dist(self.fingertip_fk(rs), goal)
+                if err_real > .010:
+                    print(f'{tag}: FK reale fuori target '
+                          f'({err_real*100:.1f} cm, solver {err*100:.2f} cm)',
+                          flush=True)
+                    continue
+                err = err_real
+                view = self.projected_lever(rs, center)
+                if view is None:
+                    print(f'{tag}: leva dietro la camera o fuori range di profondita',
+                          flush=True)
+                    continue
+                line = (f'{tag}: q={fmt(q)}, dito {view["elev"]:+.0f} deg, '
+                        f'z_cam={view["zcam"]:.2f} m, margine={view["margin"]:.0f}px, '
+                        f'libero dal dito={view["occ"]:+.0f}px')
+                if view['margin'] < min_margin:
+                    print(line + '  -> leva fuori/al bordo del FOV', flush=True)
+                    continue
+                request = GetStateValidity.Request()
+                request.robot_state = rs
+                request.group_name = 'arm'
+                if not call(self, self.valid, request).valid:
+                    print(line + '  -> collisione', flush=True)
+                    continue
+                score = view['mid'] + 0.02*abs(phi) + 2.0*err
+                valid.append((float(score), float(err), view, np.asarray(q), pitch_of(q)))
+                print(line + ('  OK' if view['occ'] >= MIN_OCCLUSION_CLEAR_PX
+                              else '  -> dito davanti alla leva'), flush=True)
+
         pool = [c for c in valid if c[2]['occ'] >= MIN_OCCLUSION_CLEAR_PX]
         if pool:
             pool.sort(key=lambda item: (item[0], item[1]))
@@ -896,6 +958,41 @@ def distance_from_segment(p, a, b):
     t = max(0.0, min(1.0, sum(x*y for x, y in zip(ap, ab)) / denom))
     projection = tuple(x+t*y for x, y in zip(a, ab))
     return math.dist(p, projection)
+
+
+def open_gripper(node, position=GRIPPER_OPEN_POS):
+    """Apre le dita (slider_joint) per liberare la vista della camera.
+
+    La camera e' solidale al polso e le dita, da chiuse, coprono la leva
+    nella posa di pre-approach (vedi /tmp/lever_view_*.png). Aprire le dita
+    le allontana dall'asse ottico senza cambiare la punta di contatto
+    (ee_finger1 resta il riferimento di FK).
+    """
+    from trajectory_msgs.msg import JointTrajectoryPoint
+
+    client = ActionClient(node, FollowJointTrajectory,
+                          '/gripper_controller/follow_joint_trajectory')
+    if not client.wait_for_server(timeout_sec=5.0):
+        print('GRIPPER: action /gripper_controller non disponibile; '
+              "dita lasciate com'erano.", flush=True)
+        return False
+    goal = FollowJointTrajectory.Goal()
+    goal.trajectory.joint_names = ['slider_joint']
+    point = JointTrajectoryPoint()
+    point.positions = [float(position)]
+    point.time_from_start = duration_msg(1.5)
+    goal.trajectory.points = [point]
+    goal.goal_time_tolerance = duration_msg(2.0)
+    future = client.send_goal_async(goal)
+    rclpy.spin_until_future_complete(node, future, timeout_sec=8.0)
+    if not future.done() or future.exception() or not future.result().accepted:
+        print('GRIPPER: apertura rifiutata dal controller; continuo.', flush=True)
+        return False
+    result = future.result().get_result_async()
+    rclpy.spin_until_future_complete(node, result, timeout_sec=10.0)
+    print(f'GRIPPER: dita aperte a slider_joint={position:.3f} m.', flush=True)
+    time.sleep(0.5)
+    return True
 
 
 def verify_gazebo_controller(node):
@@ -1121,9 +1218,12 @@ def plan_and_maybe_execute(n, target, args, original, q_start, start_tip,
         print('Giunti ARRIVO imposti (aggiustamento polso):', fmt(GOAL_JOINTS), flush=True)
     else:
         GOAL_JOINTS = n.find_joint_goal(q_start, target, original, precision=contact_phase)
-        if args.keep_visible == 'true' and not contact_phase and phase_label is None:
+        if (args.keep_visible == 'true' and not contact_phase
+                and phase_label is None and joint_goal is None):
             # Vision-oriented IK BEFORE moving: keep the camera pointed toward
             # the already measured main_switch while preserving fingertip target.
+            # NB: NON si applica quando arriva una candidata esplicita da
+            # VIEW SEARCH, altrimenti si perde il roll scelto per la visibilita'.
             GOAL_JOINTS = n.view_preserving_goal(
                 original, q_start, GOAL_JOINTS, target, frozen_panel[0])
     print('Giunti ARRIVO trovati dalla IK LIVE:', fmt(GOAL_JOINTS),flush=True)
@@ -1460,7 +1560,9 @@ class FreshDepthObserver:
             lx,ly,w,h,area=(int(x) for x in stats[i])
             du=x0+float(centers[i,0])-u;dv=y0+float(centers[i,1])-v
             d=math.hypot(du,dv)
-            if area>=12 and h>=4 and d<=32:
+            # 80 px: a 8 cm la leva rossa occupa ~60x45 px e il suo centroide
+            # puo' stare ~60 px dal pixel previsto (che cade sull'estremo).
+            if area>=12 and h>=4 and d<=80:
                 candidates.append((d,i,lx,ly,w,h,area))
         if not candidates:
             self.last_error='Rosso della leva non riconoscibile nella nuova RGB'
@@ -1718,6 +1820,12 @@ def main():
                         help='Quanto la punta scende sotto il bordo basso della leva (m), 0.015..0.040')
     parser.add_argument('--keep-visible', choices=('true','false'), default='true',
                         help='true: sceglie IK con visuale prevista e verifica depth vera dopo 8 e 5 cm; se fallisce STOP')
+    parser.add_argument('--gripper-open-pos', type=float, default=GRIPPER_OPEN_POS,
+                        help='Apertura slider_joint (m) usata da --open-gripper true; '
+                             'limiti URDF -0.01..0.06 (default 0.04)')
+    parser.add_argument('--open-gripper', choices=('true','false'), default='false',
+                        help='true: apre le dita (slider_joint) prima della ricerca vista '
+                             'cosi non coprono la camera nella posa finale')
     parser.add_argument('--max-wrist-tries', type=int, default=4,
                         help='Numero massimo di configurazioni di arrivo da provare, con verifica RGB-D (1..8)')
     args = parser.parse_args()
@@ -1725,6 +1833,8 @@ def main():
         parser.error('--max-wrist-tries ammesso tra 1 e 8')
     if not (-0.004 <= args.contact_depth <= 0.010):
         parser.error('--contact-depth ammesso tra -0.004 e +0.010 m')
+    if not (0.0 <= args.gripper_open_pos <= 0.06):
+        parser.error('--gripper-open-pos ammesso tra 0.0 e 0.06 m')
     if not (0.015 <= args.under_drop <= 0.040):
         parser.error('--under-drop ammesso tra 0.015 e 0.040 m')
     if not (0.0 <= args.camera_lift <= .008):
@@ -1777,6 +1887,24 @@ def main():
         print('TF punta PARTENZA:', fmt(start_tip_tf), flush=True)
         if math.dist(start_tip, start_tip_tf) > MAX_TF_FK_ERROR_M:
             raise RuntimeError('Stato MoveIt e TF discordano: STOP prima della pianificazione.')
+
+        # Apertura dita PRIMA della ricerca vista: senno' la camera (montata
+        # sotto il polso) inquadra le dita invece della leva.
+        if args.open_gripper == 'true':
+            open_gripper(n, args.gripper_open_pos)
+            # La punta e' definita come offset nel frame del dito: ruotando
+            # il dito (apertura) la punta FK si sposta. Rileggo lo stato DOPO
+            # l'apertura, altrimenti la ricerca vista e la pianificazione
+            # userebbero due stati diversi (16 cm di errore punta).
+            time.sleep(0.8)
+            refreshed = n.get_state()
+            q_new = q_from_state(refreshed)
+            if max(abs(a-b) for a, b in zip(q_new, q_start)) > MAX_START_STILL_RAD:
+                raise RuntimeError('Il braccio si e mosso durante l apertura dita: STOP.')
+            original, q_start = refreshed, q_new
+            n.check_state(original, 'Stato dopo apertura dita')
+            start_tip = n.fingertip_fk(original)
+            print('FK punta dopo apertura dita:', fmt(start_tip), flush=True)
 
         # Fotografia della posa statica ottenuta DOPO l'allineamento.
         center0 = n.center0.copy()
