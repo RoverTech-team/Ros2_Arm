@@ -1,3 +1,297 @@
+====================================================================
+DEBUG MAIN SWITCH — STATO (aggiornato 19/11/2026)
+====================================================================
+
+ESITO: RISOLTO. La causa NON era la geometria, ne' le dita, ne' il
+riconoscimento del colore: il nodo ArUco/depth non riceveva proprio i
+frame RGB e depth dalla camera.
+
+--------------------------------------------------------------------
+1. SINTOMO
+--------------------------------------------------------------------
+`DEPTH: nessun pulsante misurabile dalla posa attuale (fuori FOV,
+profondita non valida o mancata sincronizzazione)` ripetuto ogni ~5 s,
+anche con:
+  - i marker ArUco visti e il centraggio convergente (errore 0.5-0.8 px),
+  - solvePnP coerente (leva esattamente dove ci si aspetta),
+  - la leva rossa perfettamente inquadrata.
+
+In piu' il demo C++ faceva 85 passi di "sweep senza marker" e finiva per
+spingere/rovesciare il pannello nella simulazione.
+
+--------------------------------------------------------------------
+2. CAUSA (QoS DDS, non codice di misura)
+--------------------------------------------------------------------
+`test_aruco_depth_search_center.py` viene avviato PRIMA di
+`ros_gz_bridge`. Le sottoscrizioni a:
+    /camera/rgbd/image
+    /camera/rgbd/depth_image
+erano BEST_EFFORT (`qos_profile_sensor_data`), mentre il bridge pubblica
+RELIABLE. In questa combinazione (sottoscrittore creato prima del
+publisher) il discovery non le aggancia mai: il nodo resta muto per
+tutta la sessione.
+
+Conseguenze a catena:
+  - nessun callback immagine  -> /panel/markers_detected mai pubblicato
+    -> il demo C++ non trova i marker e spazza a vuoto;
+  - depth cache sempre vuota  -> depth_for_image() ritorna None
+    -> diagnostica `depth_assente_o_non_sincronizzata`
+    -> "nessun pulsante misurabile".
+
+NOTA: verificato con un probe esterno che i frame arrivano a 29 Hz, con
+stamp RGB e depth identici e 73% di pixel depth validi. Il problema era
+solo l'aggancio DDS del nodo, non i dati.
+
+--------------------------------------------------------------------
+3. FIX APPLICATI
+--------------------------------------------------------------------
+In src/rover_arm_panel_description/scripts/test_aruco_depth_search_center.py:
+  - QoS RELIABLE (depth 10) su RGB e su depth, uguale al publisher del
+    bridge; resta la guardia MAX_RGB_FRAME_AGE_S che scarta i frame in
+    backlog (log: "RGB in ritardo di ... frame scartato (backlog)").
+  - MultiThreadedExecutor + MutuallyExclusiveCallbackGroup dedicato ai
+    callback image/depth, cosi' il listener TF non li affama.
+  - warning depth arricchito con diagnostica per controllo:
+      Diag={'main_switch': {'misurato_rgb_depth': N, 'depth_assente...': M}}
+      Last={'main_switch': {'pixel': (u,v), 'z_observed': Z, ...}}
+    (serve anche in headless, dove non si vede l'overlay OpenCV).
+
+In src/rover_arm_panel_description/launch/demo_rover_panel_depth.launch.py:
+  - argomento `headless` (default "false"): con `headless:=true` non
+    partono gz GUI, RViz e le finestre OpenCV del detector; il server
+    Gazebo renderizza comunque i sensori.
+
+--------------------------------------------------------------------
+4. COMANDI
+--------------------------------------------------------------------
+Headless (consigliato su macchine cariche):
+  source ~/Documents/Polispace/ros2_humble/local_setup.zsh
+  source install/local_setup.zsh
+  export ROS_LOCALHOST_ONLY=1 ROS_DOMAIN_ID=42 GZ_PARTITION=8 GZ_IP=127.0.0.1
+  ros2 launch rover_arm_panel_description demo_rover_panel_depth.launch.py \
+      use_gazebo:=true use_nav2:=false headless:=true
+
+Con GUI (default):
+  ... stessa cosa senza headless:=true (o headless:=false)
+
+Stop:
+  pkill -f demo_rover_panel_depth.launch.py; pkill -f "gz sim"
+
+ATTENZIONE: ogni launch lascia processi se non viene chiuso bene
+(world_to_odom, bridge, RSP...). Prima di rilanciare conviene uccidere
+tutto, altrimenti si accumulano nodi duplicati e il sistema va in load.
+
+--------------------------------------------------------------------
+5. RISULTATO DELLA VERIFICA (headless, 19/11/2026)
+--------------------------------------------------------------------
+Ciclo completo con auto_execute:=false (solo piano):
+  - detector ~8 Hz; marker 0 e 1 trovati; centraggio 15 step;
+  - /panel/align_done pubblicato;
+  - depth misura le leve: main_switch a pixel ~(717, 505), z ~0.46-0.47 m,
+    pubblicato su /panel/controls/main_switch/pose_base;
+  - pre-approach AUTO completato:
+      DISTANZA FINALE PUNTA/TARGET: 0.13 cm
+      DEVIAZIONE MASSIMA PUNTA: 2.2 cm; MIN DISTANZA dalla leva: 7.9 cm
+      ESITO: PIANO VALIDATO; NON ESEGUITO (solo simulazione).
+
+Ciclo completo con auto_execute:=true (movimento reale in Gazebo):
+  - FASE 1 PRE-APPROACH ESEGUITA: errore giunti 0.0002-0.0005 rad,
+    errore punta/target 0.06-0.63 cm, "SUCCESS: il controller Gazebo ha
+    eseguito il piano e la punta e' vicina al target";
+  - FASE 2 (ri-osservazione RGB-D a braccio fermo): FALLITA.
+    VIEW SEARCH ha provato 2 configurazioni IK su 4 valide:
+      "Rosso della leva non riconoscibile nella nuova RGB"
+      "nessuna delle configurazioni provate ha prodotto una misura RGB-D
+       valida. STOP: nessuna fase 2."
+    Il processo main_switch_pre_approach_AUTO.py esce con code 2.
+  - Immagini di debug salvate dallo script: /tmp/lever_view_00.png,
+    /tmp/lever_view_01.png (copie anche in
+    /private/var/folders/2r/.../opencode/lever_view_0*.png).
+    Cosa mostrano: il mirino verde (main_switch previsto) cade sulle DITA
+    del gripper, a z=0.24-0.25 m, mentre il pannello e' a ~0.46 m.
+    Le leve rosse sono visibili ma in basso a sinistra, fuori dalla ROI
+    prevista. Non e' un problema di soglia colore: e' la vista OCCLUSA
+    dalle dita nella posa finale (confermata la nota originale "la vista
+    e' coperta dalle dita").
+
+Miglioramenti gia' applicati in questa sessione:
+  - RGB e depth su gruppi di callback SEPARATI: la depth non resta piu'
+    in coda dietro ArUco (8 Hz su 1280x800). Frames scartati per
+    desync: da ~63% a ~30% (12/40 per controllo), warning a dt=0.132 s
+    (limite 0.12 s).
+  - Stima finale: se i marker sono fuori FOV dopo lo stop, si pubblica
+    l'ultima posa pannello valida pre-stop (niente piu' "Stima finale in
+    attesa").
+
+--------------------------------------------------------------------
+6. VIEW SEARCH: ROLL + DITA APERTE (19/11/2026)
+--------------------------------------------------------------------
+Implementato in main_switch_pre_approach_AUTO.py:
+  - ROLL_GRID_RAD = (0.6, -0.6, 1.2, -1.2): dopo le candidate di pitch,
+    si ruota ee_base_joint_y con IK a roll FISSO (free=[0,1,2,3]) sulle
+    migliori 3 candidate. Con roll=-1.2 la leva risulta libera dal dito
+    (+78 px) gia' con le dita chiuse.
+  - FK di verifica reale (fingertip_fk) su ogni candidata roll, perche'
+    il residuo interno del solver non bastava.
+  - `--open-gripper true`: apre slider_joint a 0.04 m prima della
+    ricerca. ATTENZIONE: la punta e' un offset nel frame del dito, quindi
+    aprendo le dita la punta FK si sposta (~1.26 rad, ~14 cm) e la
+    geometria di spinta cambia; serve rileggere lo stato DOPO l'apertura
+    (fatto) e con 0.04 m TUTTE le candidate falliscono il target.
+    Per ora conviene lasciarlo a false: il roll da solo basta a 8 cm.
+  - Soglia del rosso in measure_one: distanza massima centroide-pixel
+    previsto da 32 a 80 px (a 8 cm la leva occupa ~60x45 px e il
+    centroide sta a ~55 px dal pixel previsto).
+
+ESITO con `auto_execute:=true` (dita chiuse, roll):
+  - FASE 1 (8 cm): PIANIFICATA ED ESEGUITA, errore punta 0.02 cm,
+    "VIEW SEARCH SUCCESS: leva verificata da 4 RGB-D nuove,
+    configurazione 1: (-1.661, -0.571, -1.188, +1.168, -1.205)",
+    nuova misura leva: centro=(+0.677,-0.115,+0.154), scatter 0.1 mm.
+  - FASE 2 (5 -> 8 cm): ESEGUITA, errore punta 0.61 cm,
+    main_switch invariato (-1.570 -> -1.570 rad).
+  - GUARDIA VISIVA dopo la fase 2: FALLITA a 5 cm:
+      "VISION GUARD: main_switch NON visibile dopo il movimento
+       Rosso della leva non riconoscibile nella nuova RGB"
+    Immagine: /tmp/lever_view_00.png (copia
+    /private/var/.../opencode/lever_phase2.png). A 5 cm la leva e'
+    un'asticella rossa sottile al bordo di una superficie grigia
+    (pannello visto di sbieco): il rosso utile e' molto ridotto.
+    NB: la stessa immagine, rianalizzata offline, contiene 2 componenti
+    rosse valide (852 px a ~52 px dal mirino e 549 px a ~15 px), quindi
+    il fallimento dipende dal frame effettivamente usato dalla guardia
+    (probabilmente occlusione/grazing diversa in quel frame), non dalla
+    soglia globale.
+
+--------------------------------------------------------------------
+7. COSA RESTA DA FARE
+--------------------------------------------------------------------
+  a) [FATTO] Sincronizzazione RGB/depth: gruppi callback separati +
+     guardia backlog. Restano ~30% di frame scartati con dt=0.132 s:
+     alzare `max_rgb_depth_delta_s` a ~0.15 se serve.
+  b) [FATTO] Stima finale con marker fuori FOV: fallback sulla posa
+     valida in cache prima dello stop.
+  c) [FATTO] Occlusione a 8 cm: roll del polso. La fase 1 e' validata
+     dalla RGB-D reale.
+  d) [PROSSIMO] Guardia visiva a 5 cm. La leva e' al limite del pannello
+     e il rosso e' una striscia sottile; opzioni:
+       - usare la depth (e non il rosso) per confermare la leva a 5 cm;
+       - allargare/ruotare la finestra di ricerca (ROI) o accettare
+         componenti piu' piccole (area>=12 ma h>=4 e' gia' permissivo);
+       - salvare PIU' frame di debug (oggi solo il primo per observe())
+         per capire se il fallimento e' su un frame sfortunato;
+       - aumentare final_standoff da 0.05 a 0.06-0.075 (la visione a
+         5 cm e' al limite del grazing).
+  e) Controlli NON-leva (rotary/power switch): tutti finiscono in
+     `depth_differente_dalla_previsione` (z_prevista ~0.40 m vs depth
+     grezza ~0.46-0.47 m, tolleranza 0.025 m). Le leve funzionano
+     perche' usano la via RGB-rosso. Da verificare il piano nominale di
+     `control_points` per quei controlli.
+  f) Idea "solo depth" dalle note originali: utile per (d), NON per
+     l'occlusione meccanica (li' serve il roll).
+
+--------------------------------------------------------------------
+8. APERTURA DITA: TUNING (20/11/2026)
+--------------------------------------------------------------------
+Nuovo script headless (installato come eseguibile del pacchetto):
+
+  ros2 run rover_arm_panel_description tune_gripper_opening.py \
+      [--lever-center X Y Z] [--target X Y Z] [--arrival-joints Q1..Q5]
+
+Cosa fa: per ogni apertura di slider_joint (0, 5, 10, 15, 20, 25, 30, 40 mm)
+usa FK + calibrazione camera per calcolare, nella posa di arrivo a 8 cm:
+  - occ    = distanza in px tra leva e bordo delle dita proiettate
+             (negativo = dito davanti alla leva)
+  - Tip    = spostamento della punta FK rispetto alle dita chiuse (cm)
+             dovuto alla rotazione del dito sul giunto
+Stampa la tabella e consiglia l'apertura piu' piccola con occ >= 8 px e
+Tip <= 3 cm. Senza --arrival-joints risolve la IK dalla stato attuale
+(serve la demo allineata); con --arrival-joints valuta una posa nota.
+
+Risultato misurato (posa di arrivo roll=-1.205, leva a 8 cm):
+  apertura |  occ px | Tip cm
+     0.000 |    -7.8 |   0.0     (dito ancora davanti)
+     0.005 |   +67.5 |   2.2
+     0.010 |  +149.0 |   4.4
+     0.015 |  +238.9 |   6.6
+     0.020 |  +341.2 |   8.7
+     0.030 |  +370.3 |  12.8
+     0.040 |  +345.1 |  16.5     (l'apertura grande sposta troppo la punta)
+=> CONSIGLIATA 0.005 m (5 mm): libera la leva con la minima rotazione del
+   dito. L'apertura 0.04 m usata nel primo test era troppo grande: con
+   quella TUTTE le candidate fallivano il target (errore punta 16.5 cm).
+
+Immagini di debug (vista PREDETTA da FK, non render Gazebo): con
+`--images` lo script salva le 3 aperture piu' piccole che liberano la leva:
+  /tmp/tune_open_005mm.png  occ=+67 px  tip=2.2 cm   (consigliata)
+  /tmp/tune_open_010mm.png  occ=+149 px tip=4.4 cm
+  /tmp/tune_open_015mm.png  occ=+238 px tip=6.6 cm
+Disegno: leva = barra rossa + mirino verde, dita = capsule gialle proiettate
+(raggio FINGER_RADIUS_M) solo se piu' vicine della leva.
+
+Nuovi parametri:
+  main_switch_pre_approach_AUTO.py: --gripper-open-pos <m> (0..0.06)
+  launch: open_gripper:=true gripper_open_pos:=0.005
+  tune_gripper_opening.py: --images [--out-dir DIR]
+
+--------------------------------------------------------------------
+9. FOV NON RENDERIZZATO: NEAR CLIP (20/11/2026)
+--------------------------------------------------------------------
+Sintomo: porzioni rettangolari della FOV RGB "vuote"/non renderizzate,
+soprattutto a 5-8 cm dal pannello (dita e bordo pannello).
+Causa: nel sensore Gazebo il clip di rendering era <near>0.05</near>:
+tutto cio' che stava entro 5 cm dalla camera veniva TAGLIATO, lasciando
+buchi (si vedeva lo sfondo). Non era un problema del bridge ne' del
+detector.
+Fix in rover_arm_description/urdf/camera_arm.urdf.xacro:
+  camera principale:     <near> 0.05 -> 0.01 </near>
+  depth_camera:          <near> 0.05 -> 0.01 </near>
+La distanza minima REALE della Gemini (0.05 m) resta applicata dal
+filtro software del detector (z >= 0.05), non dal clip di rendering.
+
+Verifica: immagini RGB reali catturate con
+  ros2 run rover_arm_panel_description capture_gripper_openings.py       --goto-arrival -1.661 -0.571 -1.188 1.168 -1.205       --openings 0 0.005 0.010 0.015 --settle 2.0       --lever-center 0.677 -0.115 0.154
+Lo script legge /camera/rgbd/image direttamente da gz.transport (bypassa
+ros_gz_bridge, che su questa macchina non consegna l'RGB) e disegna il
+mirino previsto + l'apertura usata. Dopo il fix i blocchi non
+renderizzati sono spariti; restano solo le due cavita' scure tra dito e
+polso (geometria reale in ombra, presenti anche prima).
+
+--------------------------------------------------------------------
+10. SUPPORTO CAMERA 10 cm (20/11/2026)
+--------------------------------------------------------------------
+Problema: la camera era fissata direttamente a ee_base (centro del polso,
+tra le dita) e a 5-8 cm le dita occupavano buona parte del FOV.
+Modifica in rover_arm_description/urdf/camera_arm.urdf.xacro:
+  - nuovo link camera_support_link (box 0.10 x 0.016 x 0.016 m, massa 0.05 kg),
+    fissato a ee_base in (0.03, 0.09, 0) ed ESTESO LUNGO X: X e'
+    perpendicolare al piano di apertura delle dita (apertura lungo Z,
+    dita estese lungo Y).
+  - gemini_camera_link ora e' figlio di camera_support_link, con origine
+    (0.10, 0, 0) rpy (0,0,pi): camera spostata di 10 cm lateralmente.
+  - il supporto e' SOLO VISUAL (nessuna collision): non deve introdurre un
+    ingombro che blocchi la pianificazione a 5-8 cm dal pannello. Su
+    hardware reale va progettato e aggiunto anche come collision.
+
+Verifica con capture_gripper_openings.py (frame reali da gz.transport):
+  /private/var/.../opencode/grip_open_000mm.png  e  grip_open_010mm.png
+Le dita NON sono piu' nel FOV e la leva e' visibile col mirino previsto
+(z=0.28 m) sia a 0 sia a 10 mm di apertura: l'occlusione meccanica e'
+risolta alla radice. La calibrazione del demo (TF ee_base->ottica) si
+aggiorna da sola, non serve toccare i parametri del vision guard.
+
+NOTA AMBIENTE (20/11): in questa sessione il bridge RGB non consegna
+/camera/rgbd/image su ROS (gz pubblica, depth e camera_info arrivano,
+immagine no) e compaiono errori DDS verso un peer esterno
+(100.125.187.81) nonostante ROS_LOCALHOST_ONLY. Il test end-to-end con
+apertura 0.005 e' quindi rimandato: serve prima un DDS sano (es.
+CYCLONEDDS_URI con NetworkInterfaceAddress=lo0, o spegnere VPN/Tailscale).
+Il tuning geometrico qui sopra non dipende dalla camera e resta valido.
+
+====================================================================
+NOTE ORIGINALI (precedenti al debug, mantenute per storico)
+====================================================================
+
 Per vedere dove la camera si aspetta di vedere la leva da solvepnp, runnare questo
 
 rm -f /tmp/lever_view_*.png
@@ -61,5 +355,4 @@ il mirino punta giusto ma la vista è coperta dalle dita. PEnsavo che il problem
  quindi prossimo step è capire come mai depth non riconosce la leva nonostante sia visibile e  nonostante sia esattamente dove ci si aspetta con solve PNP...
  
  i problemi potrebbero essere o legati al codice che magari vede il pulsante ma non lo restituisce nei log (sarebbe da esplicitare meglio un mirino se viene visto il pulsante, lho famtto ma di fretta e non ho avuto modo di rivederlo). 
- Altrimenti il problema potrebbe essere che prima, per stimare la presenza dei pulsanti, usavamo rgb+deph. RGB però a breve distanza fa schifo: sarebbe da vedere questo e semmai togliere rgb e dire alla camera di fare solo con depth, perche se chiaramente le dici "cerca la zona rossa qua attorno" ma la zona rossa non la vede, non potra neanche partire con depth. 
- 
+ Altrimenti il problema potrebbe essere che prima, per stimare la presenza dei pulsanti, usavamo rgb+deph. RGB però a breve distanza fa schifo: sarebbe da vedere questo e semmai togliere rgb e dire alla camera di fare solo con depth, perche se chiaramente le dici "cerca la zona rossa qua attorno" ma la zona rossa non la vede, non potra neanche partire con depth.
