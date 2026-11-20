@@ -81,14 +81,50 @@
     fisicamente prima delle prove di contatto.
   -->
 
-  <joint name="camera_rover_mount_joint" type="fixed">
+  <!-- Supporto laterale da 10 cm, PERPENDICOLARE al piano di apertura
+       delle dita: le dita si aprono lungo Z (finger1 a z=-0.055, finger2 a
+       z=+0.055) e si estendono lungo Y; il supporto esce lungo X.
+       Serve a portare la camera fuori dall'ombra delle dita.
+       SOLO VISUAL: nessuna collision, per non introdurre un ingombro che
+       bloccherebbe la pianificazione a 5-8 cm dal pannello. Su hardware
+       reale il supporto va progettato e poi aggiunto anche come collision. -->
+  <link name="camera_support_link">
+    <visual>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.10 0.016 0.016"/>
+      </geometry>
+      <material name="support_grey">
+        <color rgba="0.35 0.35 0.38 1.0"/>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00005" iyz="0.0"
+               izz="0.00005"/>
+    </inertial>
+  </link>
+
+  <joint name="camera_support_joint" type="fixed">
 
     <parent link="ee_base"/>
+
+    <child link="camera_support_link"/>
+
+    <origin
+      xyz="0.03 0.09 0.0"
+      rpy="0 0 0"/>
+
+  </joint>
+
+  <joint name="camera_rover_mount_joint" type="fixed">
+
+    <parent link="camera_support_link"/>
 
     <child link="gemini_camera_link"/>
 
     <origin
-      xyz="0.03 0.09 0.0"
+      xyz="0.10 0.0 0.0"
       rpy="0 0 3.141593"/>
 
   </joint>
@@ -222,10 +258,15 @@
           <height>800</height>
         </image>
 
-        <!-- Clipping del rendering -->
+        <!-- Clipping del rendering.
+             near=0.01 m (era 0.05): a 5-8 cm dal pannello le dita e i
+             bordi del pannello finivano DENTRO il near plane e venivano
+             tagliati, lasciando porzioni di FOV non renderizzate.
+             La distanza minima di misura della depth resta gestita dal
+             filtro software (0.05 m), non dal clip. -->
 
         <clip>
-          <near>0.05</near>
+          <near>0.01</near>
           <far>1.0</far>
         </clip>
 
@@ -233,8 +274,13 @@
 
         <depth_camera>
 
+          <!-- Stesso near del flusso RGB: evita buchi di profondita'
+               quando dita/pannello sono a pochi cm dalla camera.
+               Il limite di 0.05 m della Gemini reale resta applicato
+               dal filtro software del detector. -->
+
           <clip>
-            <near>0.05</near>
+            <near>0.01</near>
             <far>1.0</far>
           </clip>
 
