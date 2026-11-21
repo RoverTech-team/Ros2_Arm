@@ -235,8 +235,11 @@
         a quella del frame ottico.
       -->
 
+      <!-- Posa = origine del joint camera_optical_joint (rpy 1.570796 -1.570796 0):
+           prima era la sua INVERSA (-1.570796 0 -1.570796), quindi il render
+           Gazebo non coincideva con gemini_camera_optical_frame di TF. -->
       <pose>
-        0 -0.00755 0 -1.570796 0 -1.570796
+        0 -0.00755 0 1.570796 -1.570796 0
       </pose>
 
       <always_on>true</always_on>
