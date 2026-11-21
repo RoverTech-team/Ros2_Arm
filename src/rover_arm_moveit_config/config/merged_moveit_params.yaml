@@ -143,4 +143,3 @@ move_group:
     planning_pipelines:
     - ompl
     publish_robot_description_semantic: true
-    use_sim_time: false

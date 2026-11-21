@@ -52,6 +52,13 @@ def generate_launch_description():
             description="Topic to subscribe for joint states.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_sim_time",
+            default_value="false",
+            description="Use Gazebo /clock simulated time instead of the system clock.",
+        )
+    )
 
     description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
@@ -59,6 +66,7 @@ def generate_launch_description():
     prefix = LaunchConfiguration("prefix")
     srdf_file = LaunchConfiguration("srdf_file")
     joint_states_topic = LaunchConfiguration("joint_states_topic")
+    use_sim_time = ParameterValue(LaunchConfiguration("use_sim_time"), value_type=bool)
 
     robot_description_content = Command(
         [
@@ -109,7 +117,7 @@ def generate_launch_description():
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="both",
-        parameters=[robot_description],
+        parameters=[robot_description, {"use_sim_time": use_sim_time}],
         remappings=[("joint_states", joint_states_topic)],
     )
 
@@ -123,6 +131,7 @@ def generate_launch_description():
             moveit_params_file,
             moveit_common_params_file,
             sensors_3d_file, # 2. Aggiungi il file ai parametri di MoveIt
+            {"use_sim_time": use_sim_time},
         ],
         remappings=[("joint_states", joint_states_topic)],
     )

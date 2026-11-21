@@ -144,6 +144,26 @@ def generate_launch_description():
         DeclareLaunchArgument("keep_visible", default_value="true",
                               description="True: dopo 8 e 5 cm controlla che il main_switch sia visibile dalla camera e, se no, inclina il polso tenendo ferma la punta")
     )
+    declared_arguments.append(
+        DeclareLaunchArgument("open_gripper", default_value="false",
+                              description="True: apre le dita prima della ricerca vista (la camera e' sotto il polso e le dita coprono la leva)")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("gripper_open_pos", default_value="0.04",
+                              description="Apertura slider_joint (m) quando open_gripper:=true; limiti URDF 0..0.06")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("preaim_enabled", default_value="true",
+                              description="True: preorienta j1/j2/j3 verso il pannello prima della ricerca ArUco. "
+                                          "False: lascia la posa iniziale e cerca solo con lo sweep")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("headless", default_value="false",
+                              description="True: nessuna finestra grafica (niente Gazebo GUI, niente RViz, "
+                                          "niente finestra OpenCV del detector). Utile per debug a basso carico")
+    )
+    preaim_enabled = LaunchConfiguration("preaim_enabled")
+    headless = LaunchConfiguration("headless")
     use_nav2 = LaunchConfiguration("use_nav2")
     use_gazebo = LaunchConfiguration("use_gazebo")
     force_panel_facing = LaunchConfiguration("force_panel_facing")
@@ -154,6 +174,8 @@ def generate_launch_description():
     contact_mode = LaunchConfiguration("contact_mode")
     final_standoff = LaunchConfiguration("final_standoff")
     keep_visible = LaunchConfiguration("keep_visible")
+    open_gripper = LaunchConfiguration("open_gripper")
+    gripper_open_pos = LaunchConfiguration("gripper_open_pos")
     contact_depth = LaunchConfiguration("contact_depth")
 
     # ── Panel (shared, unchanged between mock/gazebo) ────────────
@@ -377,7 +399,8 @@ def generate_launch_description():
     gz_gui = ExecuteProcess(
         cmd=["gz", "sim", "-v", "3", "-g", "--render-engine-gui", "ogre2"],
         output="screen",
-        condition=IfCondition(use_gazebo),
+        condition=IfCondition(PythonExpression(
+            ["'", use_gazebo, "' == 'true' and '", headless, "' != 'true'"])),
     )
 
     spawn_robot = ExecuteProcess(
@@ -674,6 +697,7 @@ def generate_launch_description():
         output="log",
         arguments=["-d", rviz_config],
         parameters=[moveit_common_params],
+        condition=UnlessCondition(headless),
     )
 
     # Ricerca VISIVA autonoma: nessuna posizione degli ArUco nota in partenza.
@@ -690,7 +714,8 @@ def generate_launch_description():
             {"joint_speed": 1.40},
             # Preorientamento iniziale della camera: coordinate nel frame base_footprint.
             # Dal setup attuale: pannello (1.30, 0.165), rover (0.90, 0.165).
-            {"preaim_enabled": True},
+            {"preaim_enabled": ParameterValue(
+                LaunchConfiguration("preaim_enabled"), value_type=bool)},
             {"preaim_target_x": PANEL_FACE_X - ROBOT_X},
             {"preaim_target_y": PANEL_FACE_CENTER_Y - ROBOT_Y},
             # Quota iniziale da puntare (m in base_footprint):
@@ -722,7 +747,8 @@ def generate_launch_description():
         name="aruco_detector",
         parameters=[
             {"use_sim_time": True},
-            {"enable_gui": True},
+            {"enable_gui": ParameterValue(
+                PythonExpression(["'", headless, "' != 'true'"]), value_type=bool)},
             {"assume_vertical_panel": True},
         ],
         output="both",
@@ -746,7 +772,9 @@ def generate_launch_description():
              "--attempt-contact", attempt_contact, "--camera-lift", camera_lift,
              "--contact-mode", contact_mode,
              "--final-standoff", final_standoff, "--contact-depth", contact_depth,
-             "--keep-visible", keep_visible],
+             "--keep-visible", keep_visible,
+             "--open-gripper", open_gripper,
+             "--gripper-open-pos", gripper_open_pos],
         output="screen",
         condition=IfCondition(use_gazebo),
     )

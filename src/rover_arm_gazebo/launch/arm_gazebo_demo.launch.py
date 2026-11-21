@@ -3,7 +3,7 @@ import tempfile
 import subprocess
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, IncludeLaunchDescription, SetEnvironmentVariable
+from launch.actions import ExecuteProcess, IncludeLaunchDescription, SetEnvironmentVariable, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
@@ -72,7 +72,7 @@ def generate_launch_description():
         package='robot_state_publisher',
         executable='robot_state_publisher',
         name='arm_robot_state_publisher',
-        parameters=[{'robot_description': arm_urdf}],
+        parameters=[{'robot_description': arm_urdf, 'use_sim_time': True}],
     )
 
     move_group_launch = IncludeLaunchDescription(
@@ -83,6 +83,7 @@ def generate_launch_description():
                 'move_group.launch.py',
             )
         ),
+        launch_arguments={'use_sim_time': 'true'}.items(),
     )
 
     spawn_jsb = Node(
@@ -98,23 +99,29 @@ def generate_launch_description():
         output='screen',
     )
 
-    spawn_ctrl = Node(
-        package='controller_manager',
-        executable='spawner',
-        name='spawner_arm_ctrl',
-        arguments=[
-            'arm_controller',
-            '--controller-manager', '/controller_manager',
-            '--controller-manager-timeout', '30',
-            '--param-file', arm_ctrl_yaml,
+    spawn_ctrl = TimerAction(
+        period=8.0,
+        actions=[
+            Node(
+                package='controller_manager',
+                executable='spawner',
+                name='spawner_arm_ctrl',
+                arguments=[
+                    'arm_controller',
+                    '--controller-manager', '/controller_manager',
+                    '--controller-manager-timeout', '30',
+                    '--param-file', arm_ctrl_yaml,
+                ],
+                output='screen',
+            )
         ],
-        output='screen',
     )
 
     demo_motion = Node(
         package='rover_arm_moveit_config',
         executable='demo_motion',
         name='demo_motion',
+        parameters=[{'use_sim_time': True}],
         output='screen',
     )
 
@@ -123,6 +130,7 @@ def generate_launch_description():
         executable='rviz2',
         name='rviz2',
         output='log',
+        parameters=[{'use_sim_time': True}],
         arguments=['-d', rviz_config],
     )
 
