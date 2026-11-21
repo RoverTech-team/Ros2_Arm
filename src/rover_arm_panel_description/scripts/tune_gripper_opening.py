@@ -42,6 +42,16 @@ OPENINGS = (0.0, 0.005, 0.010, 0.015, 0.020, 0.025, 0.030, 0.040)
 MAX_TIP_SHIFT_M = 0.030
 SLIDER = 'slider_joint'
 
+# ---- Politica di scelta dell'apertura (tradeoff, non "la piu' piccola") ----
+# Beneficio = liberare la leva dal dito, ma oltre una certa distanza non serve
+# piu' nulla: satura. Costo = spostamento della punta FK (la TCP vive nel frame
+# del dito, quindi aprire la ruota): e' compensabile ma non gratis, quindi
+# pesa in modo quadratico e cresce con l'apertura.
+OCC_SATURATION_PX = 300.0   # oltre ~300 px la leva e' comunque ben staccata
+TIP_COST_WEIGHT = 0.15      # peso del costo di spostamento punta
+TIP_SCALE_CM = 12.0         # spostamento a cui il costo vale 1.0
+TIP_HARD_LIMIT_CM = 12.0    # apertura scartata oltre questo spostamento
+
 
 def load_demo_module():
     path = os.path.join(
@@ -177,22 +187,43 @@ def evaluate_arrival(ms, n, arrival, tip0):
 
 
 def print_table(rows):
-    print(f'{"apertura":>9} | {"occ":>6} | {"margine":>7} | {"z_cam":>6} | {"Tip":>6}',
+    print(f'{"apertura":>9} | {"occ":>6} | {"margine":>7} | {"z_cam":>6} | {"Tip":>6} | {"score":>6}',
           flush=True)
-    print('-' * 48, flush=True)
+    print('-' * 60, flush=True)
     for value, occ, margin, zcam, shift, err in rows:
         if err:
             print(f'{value:9.3f} | {err}', flush=True)
         else:
             print(f'{value:9.3f} | {occ:6.1f} | {margin:7.0f} | '
-                  f'{zcam:6.2f} | {shift:6.1f}', flush=True)
+                  f'{zcam:6.2f} | {shift:6.1f} | {tradeoff_score(occ, shift):6.3f}', flush=True)
+
+
+def tradeoff_explain(rows, best):
+    """Perche' questa apertura e non la piu' piccola."""
+    usable = [r for r in rows if r[5] is None]
+    small = min(usable, key=lambda r: r[0]) if usable else None
+    out = [f'Score = min(1, occ/{OCC_SATURATION_PX:.0f}px) '
+           f'- {TIP_COST_WEIGHT:.2f}*(Tip/{TIP_SCALE_CM:.0f}cm)^2']
+    if small is not None and small[0] != best[0]:
+        out.append(f'  {small[0]*1000:3.0f} mm: occ {small[1]:+5.0f} px, Tip {small[4]:4.1f} cm, '
+                   f'score {tradeoff_score(small[1], small[4]):.3f}')
+    out.append(f'  {best[0]*1000:3.0f} mm: occ {best[1]:+5.0f} px, Tip {best[4]:4.1f} cm, '
+               f'score {tradeoff_score(best[1], best[4]):.3f}  <-- scelta')
+    return '\n'.join(out)
+
+
+def tradeoff_score(occ_px, tip_cm):
+    """Beneficio saturante (clearance) meno costo quadratico (spostamento punta)."""
+    benefit = min(1.0, max(0.0, occ_px) / OCC_SATURATION_PX)
+    cost = (tip_cm / TIP_SCALE_CM) ** 2
+    return benefit - TIP_COST_WEIGHT * cost
 
 
 def pick(rows, min_occ_px, max_tip_cm):
-    """Apertura piu' piccola che libera la leva (occ) con punta stabile (Tip)."""
+    """Apertura con il punteggio di tradeoff migliore (non la piu' piccola)."""
     ok = [r for r in rows
           if r[5] is None and r[1] >= min_occ_px and r[4] <= max_tip_cm]
-    return min(ok, key=lambda r: r[0]) if ok else None
+    return max(ok, key=lambda r: tradeoff_score(r[1], r[4])) if ok else None
 
 
 def save_images(ms, n, arrival, rows, out_dir):
@@ -253,7 +284,7 @@ def main():
         min_occ = ms.MIN_OCCLUSION_CLEAR_PX
         fov_margin = (args.fov_margin if args.fov_margin is not None
                       else max(60.0, min(110.0, 0.12 * min(n.cam_W, n.cam_H))))
-        max_tip_cm = MAX_TIP_SHIFT_M * 100.0
+        max_tip_cm = TIP_HARD_LIMIT_CM
 
         if not args.stand_values:
             rows = evaluate_arrival(ms, n, arrival, tip0)
@@ -266,6 +297,7 @@ def main():
                 print(f'CONSIGLIATA apertura={best[0]:.3f} m '
                       f'(occ={best[1]:.0f} px, shift punta={best[4]:.1f} cm, '
                       f'margine={best[2]:.0f} px)', flush=True)
+                print(tradeoff_explain(rows, best), flush=True)
                 print('Uso: --open-gripper true --gripper-open-pos '
                       f'{best[0]:.3f}', flush=True)
                 if best[2] < fov_margin:
