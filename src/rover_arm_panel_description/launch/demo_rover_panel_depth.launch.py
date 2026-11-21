@@ -54,6 +54,30 @@ PANEL_QZ = math.sin(PANEL_YAW / 2.0)
 PANEL_QW = math.cos(PANEL_YAW / 2.0)
 
 
+def _force_static(urdf_path: str) -> str:
+    """Converte l'URDF in SDF e lo rende STATICO.
+
+    In questa demo il rover non guida e il pannello e' un arredo: se il modello
+    resta dinamico, senza appoggio cade/oscilla mentre TF continua a pubblicare
+    la posa nominale, e ogni proiezione (mirini, IK, view search) e' calcolata
+    su un braccio che non esiste.
+    """
+    try:
+        sdf = subprocess.check_output(["gz", "sdf", "-p", urdf_path]).decode("utf-8")
+        if "<static>" in sdf:
+            return urdf_path
+        tag = sdf.index("<model")
+        end = sdf.index(">", tag) + 1
+        sdf = sdf[:end] + "\n  <static>true</static>" + sdf[end:]
+        out = tempfile.NamedTemporaryFile(suffix="_static.sdf", delete=False, mode="w")
+        out.write(sdf)
+        out.close()
+        atexit.register(lambda: os.unlink(out.name))
+        return out.name
+    except Exception:
+        return urdf_path
+
+
 def _generate_gazebo_urdf() -> str:
     xacro_path = os.path.join(
         get_package_share_directory("my_robot_description"),
@@ -73,7 +97,7 @@ def _generate_gazebo_urdf() -> str:
     f.write(urdf)
     f.close()
     atexit.register(lambda: os.unlink(f.name))
-    return f.name
+    return _force_static(f.name)
 
 
 def _generate_gazebo_panel_urdf() -> str:
@@ -95,7 +119,7 @@ def _generate_gazebo_panel_urdf() -> str:
     f.write(urdf)
     f.close()
     atexit.register(lambda: os.unlink(f.name))
-    return f.name
+    return _force_static(f.name)
 
 
 def generate_launch_description():
