@@ -578,11 +578,19 @@ class Test(Node): #sto nodo ascolta l'ambiente, decide la traiettoria chiamando 
         # comando -> TF descrive un braccio che non e' quello renderizzato
         # (posa sbagliata ricorrente). Rientriamo nel range canonico.
         q = np.asarray(q, dtype=float).copy()
+        # Rientro nel range (-pi, pi] SCEGLIENDO il ramo piu' vicino alla posa
+        # attuale: senza questo, da +4.6 si passa a -1.7 e il braccio fa un
+        # giro completo invece del movimento minimo.
+        q0a = np.asarray(q_start, dtype=float)
         for idx in range(len(q)):
-            while q[idx] > math.pi:
-                q[idx] -= 2.0 * math.pi
-            while q[idx] < -math.pi:
-                q[idx] += 2.0 * math.pi
+            best, best_d = q[idx], abs(q[idx] - q0a[idx])
+            for k in (-2, -1, 1, 2):
+                cand = q[idx] + 2.0 * math.pi * k
+                if -math.pi - 1e-9 <= cand <= math.pi + 1e-9:
+                    d = abs(cand - q0a[idx])
+                    if d < best_d:
+                        best, best_d = cand, d
+            q[idx] = best
         print(f'IK SELEZIONATA: {source}; errore={dist*100:.2f} cm; '
               f'GOAL GIUNTI={fmt(q)}', flush=True)
         return tuple(float(v) for v in q)
