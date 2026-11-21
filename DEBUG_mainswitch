@@ -462,3 +462,34 @@ diversi danno montaggi diversi ma equivalenti (regione fattibile piatta):
 il costo non ha un ottimo unico, ha un insieme di soluzioni valide.
 Applicare dt a camera_mount_joint.xyz (assi ee_base) e drpy a
 camera_rover_mount_joint.rpy, poi verificare con tune_gripper_opening.py.
+
+=== 2026-11-21 - MONTAGGIO CMA-ES APPLICATO AL URDF: validazione PARZIALE ===
+
+Applicato in camera_arm.urdf.xacro (camera_support_joint):
+  xyz = -0.0153 0.0721 0.0333    rpy = 0.04887 0.02793 0.04014
+Verifica in simulazione: VISION GUARD offset=(+0.084, +0.084, +0.031),
+identico al target dell'ottimizzatore. Il montaggio e' applicato davvero.
+
+Predizione a 8 cm (tune_gripper_opening, posa IK del demo):
+  margine 76 px (prima era -118), occ +18 px, z_cam 0.25 m
+-> la leva entra nel FOV, ma resta sotto la soglia del demo (96 px).
+
+Immagini reali per le 5 leve (capture_gripper_openings --lever-frames):
+  le pose IK del demo NON inquadrano bene la leva: resta fuori FOV o al bordo.
+Due cause distinte:
+ 1) l'ottimizzatore aveva costruito le scene partendo da una posa diversa
+    (il braccio non era in pre-aim j2=-0.8), quindi le pose di arrivo usate
+    nel costo non sono quelle che il demo produce davvero;
+ 2) il mirino proiettato via TF non coincide con il render Gazebo: la leva
+    vera sta in basso a destra dove il mirino finisce in alto a sinistra
+    (differenza compatibile con una rotazione di ~180 gradi della terna
+    ottica). Il difetto esisteva anche PRIMA del cambio di montaggio e rende
+    inaffidabili tutti i controlli basati sulla proiezione (view search,
+    mirini, tune_gripper_opening).
+
+Prossimi passi:
+  a) rifare l'ottimizzazione con le pose di arrivo reali del demo (pre-aim
+     j2=-0.8) per le 5 leve, poi riapplicare il montaggio;
+  b) sistemare la terna ottica tra URDF e SDF (rotazione 180 gradi) e
+     riverificare con un mirino su una leva nota;
+  c) solo dopo rilanciare la demo completa e riabilitare il checkbox del PR.
