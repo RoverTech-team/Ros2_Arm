@@ -904,3 +904,36 @@ goal (--settle-tol, default 0.02 rad, polling su /joint_states, nessun nuovo
 goal) e in caso contrario la riga e' marcata "frame non affidabile" e stampa
 per giunto goal/attuale. Cosi' un frame sbagliato non puo' piu' passare per
 buono senza dirlo.
+
+=== PERCHE' LE IMMAGINI A 8 CM ERANO VUOTE (e cosa resta) ===
+
+1) BUCO NEL RENDER RGB (risolto): con <near>0.01 la camera tagliava il
+   proprio corpo (~1.15 cm dal sensore) e lasciava MEZZA IMMAGINE vuota
+   (colore di sfondo uniforme, pannello e dita assenti). La depth, che ha il
+   suo clip, era perfetta: prova che era il pass colore.
+   FIX: near 0.01 -> 0.002 su camera e depth_camera. Verificato: frame
+   completo (pannello, 5 leve, dita tutte presenti).
+
+2) SENSORE NON AGGANCIATO AL POLSO (in corso): con il sensore dentro
+   gemini_camera_link il render non seguiva ee_base_joint_x/y. Misurato con
+   la depth al pixel proiettato: la camera vera stava 0.27-0.39 m piu'
+   lontana di TF, che e' esattamente l'offset del polso (-0.028, 0, 0.2715).
+   Ho agganciato il sensore direttamente a ee_base con la posa composta
+   (supporto + mount + ottico, poi ruotata di M perche' la camera Gazebo
+   guarda +X e la terna ottica ha z avanti):
+     xyz 0.084288 0.083647 0.030876  rpy -1.542833 -0.048851 1.609570
+   (controllo: applicata nel link ridà la posa originale -1.570796 0
+   -1.570796, che era quella giusta).
+   Dopo il cambio: calibrazione ArUco a pre-aim 6.6 px e a polso +0.2 7.5 px,
+   come prima. MA alle pose di osservazione a 8 cm la depth al pixel
+   proiettato misura ancora 0.25-0.32 m contro 0.20 m di TF, e il pixel e'
+   cielo (rgb_std=0): il sensore non segue ancora il polso come TF.
+
+3) VERIFICA AUTOMATICA NEL TOOL: prima di salvare, capture_gripper_openings
+   controlla (a) che la depth al pixel proiettato valga z +-6 cm e (b) che
+   l'RGB in quel punto NON sia uniforme (rgb_std > 3). Se fallisce prova la
+   candidata successiva e marca la riga. Cosi' un frame vuoto non puo' piu'
+   essere pubblicato senza dirlo: nei run a 8 cm solo main_switch (candidata
+   5) passa, le altre 4 no.
+
+Le 5 immagini pubblicate restano quelle di pre-aim (verificate).

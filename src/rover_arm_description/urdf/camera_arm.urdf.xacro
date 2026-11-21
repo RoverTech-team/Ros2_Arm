@@ -235,7 +235,22 @@
     i flussi per mantenere l'allineamento.
   -->
 
-  <gazebo reference="gemini_camera_link">
+  <!-- Il sensore e' agganciato DIRETTAMENTE a ee_base con la posa composta
+       (supporto + mount + frame ottico). Con il sensore dentro
+       gemini_camera_link il render NON seguiva i due giunti di polso
+       ee_base_joint_x/y: misurato con la depth, la camera vera stava
+       0.27-0.39 m piu' lontana di TF, esattamente l'offset del polso
+       (-0.028, 0, 0.2715). Agganciandolo a ee_base la catena e' quella
+       giusta e il sensore segue i giunti.
+       Posa = ee_base -> gemini_camera_optical_frame (calcolata dai tre
+       offset dell'URDF: supporto -0.0153 0.0721 0.0333 rpy 0.04887 0.02793
+       0.04014, mount 0.10 0 0 rpy 0 0 3.141593, ottico 0 -0.00755 0
+       rpy 1.570796 -1.570796 0), poi ruotata di M perche' la camera Gazebo
+       guarda +X mentre la terna ottica ha z avanti:
+       R_sensore = R_ottico * [[0,-1,0],[0,0,-1],[1,0,0]].
+       Controllo: applicata nel link, ridà esattamente la posa originale
+       (-1.570796 0 -1.570796) che era quella giusta. -->
+  <gazebo reference="ee_base">
 
     <sensor name="gemini_camera" type="rgbd_camera">
 
@@ -261,7 +276,7 @@
              terna ottica (URDF corretto per questa posa) ma il TF della base
              nominale: vedi publish_gz_base_tf.py. -->
       <pose>
-        0 -0.00755 0 -1.570796 0 -1.570796
+        0.084288 0.083647 0.030876 -1.542833 -0.048851 1.609570
       </pose>
 
       <always_on>true</always_on>
@@ -295,7 +310,7 @@
              filtro software (0.05 m), non dal clip. -->
 
         <clip>
-          <near>0.01</near>
+          <near>0.002</near>
           <far>1.0</far>
         </clip>
 
@@ -309,7 +324,7 @@
                dal filtro software del detector. -->
 
           <clip>
-            <near>0.01</near>
+            <near>0.002</near>
             <far>1.0</far>
           </clip>
 

@@ -167,14 +167,19 @@ def compute_arrivals(levers, standoff, frames=None, seed=None, aim_camera=False)
             target = center - np.array((standoff, 0.0, 0.0))
             goal = node.find_joint_goal(q_start, target, original)
             if aim_camera:
-                goal = aim_pose(node, ms, goal, np.asarray(center, dtype=float))
-            arrivals.append(goal)
+                # piu' candidate ordinate: il controller puo' non riuscire a
+                # TENERE la prima (contatto/saturazione), quindi si prova la
+                # successiva invece di fotografare una posa che non esiste.
+                arrivals.append(aim_candidates(node, ms, goal,
+                                               np.asarray(center, dtype=float)))
+            else:
+                arrivals.append([goal])
         return arrivals, levers
     finally:
         node.destroy_node()
 
 
-def aim_pose(node, ms, goal, center):
+def aim_candidates(node, ms, goal, center, max_n=8):
     """Posa in cui la leva cade vicino al centro ottico (j1 + polso).
 
     La IK mette la PUNTA sul target, ma la camera e' 10 cm fuori asse: a 8 cm
@@ -205,19 +210,24 @@ def aim_pose(node, ms, goal, center):
                 score += 2000.0
             cands.append((score, tuple(float(x) for x in q), view, dj, dq))
     cands.sort(key=lambda c: c[0])
-    for cand in cands[:12]:
+    out = []
+    for cand in cands:
+        if len(out) >= max_n:
+            break
         req = ms.GetStateValidity.Request()
         req.robot_state = ms.put_joints(state, cand[1])
         req.group_name = 'arm'
         if ms.call(node, node.valid, req).valid:
-            score, q, view, dj, dq = cand
-            u, v = view['pixel']
-            print(f'   aim: j1 {dj:+.2f} polso {dq:+.2f} rad -> leva '
-                  f'({u:.0f},{v:.0f}) margine={view["margin"]:.0f} px '
-                  f'occl={view["occ"]:+.0f} px', flush=True)
-            return q
-    print('   aim: nessuna posa valida porta la leva nel FOV', flush=True)
-    return goal
+            out.append((cand[1], cand[2], cand[3], cand[4]))
+    if not out:
+        print('   aim: nessuna posa valida porta la leva nel FOV', flush=True)
+        return [goal]
+    for i, (q, view, dj, dq) in enumerate(out[:3], 1):
+        u, v = view['pixel']
+        print(f'   aim candidata {i}: j1 {dj:+.2f} polso {dq:+.2f} -> leva '
+              f'({u:.0f},{v:.0f}) margine={view["margin"]:.0f} px '
+              f'occl={view["occ"]:+.0f} px', flush=True)
+    return [c[0] for c in out]
 
 
 class Capture(Node):
@@ -239,6 +249,9 @@ class Capture(Node):
                                  self.on_info, 10)
         self.create_subscription(Image, '/camera/rgbd/image', self.on_image,
                                  qos_profile_sensor_data)
+        self.depth = None
+        self.create_subscription(Image, '/camera/rgbd/depth_image', self.on_depth,
+                                 qos_profile_sensor_data)
         self.get_logger().info('In attesa di un frame RGB...')
 
     def on_info(self, msg):
@@ -246,6 +259,9 @@ class Capture(Node):
 
     def on_image(self, msg):
         self.latest = msg
+
+    def on_depth(self, msg):
+        self.depth = msg
 
     def lever_pixel(self, center, timeout=5.0):
         """Proietta il centro leva (base_link) nel frame ottico attuale."""
@@ -272,6 +288,41 @@ class Capture(Node):
         u = K[0, 0] * pc[0] / pc[2] + K[0, 2]
         v = K[1, 1] * pc[1] / pc[2] + K[1, 2]
         return float(u), float(v), float(pc[2])
+
+    def sensor_ok(self, u, v, z, tol=0.06, half=4):
+        """La telecamera VEDE davvero la leva in (u,v) a profondita' z?
+
+        Serve perche' a certe pose il render RGB lascia mezze immagini vuote
+        (geometria tagliata dal near plane della camera stessa) mentre la
+        depth e' corretta. Senza questa verifica si pubblicano frame in cui
+        la leva non c'e', pur con una proiezione giusta.
+        Ritorna (ok, rgb_std, depth_med).
+        """
+        msg = self.wait_frame()
+        w, h = msg.width, msg.height
+        buf = np.frombuffer(bytes(msg.data), dtype=np.uint8)
+        if buf.size != w * h * 3:
+            return False, float('nan'), float('nan')
+        img = buf.reshape(h, w, 3)
+        uc, vc = int(round(u)), int(round(v))
+        if not (half <= uc < w - half and half <= vc < h - half):
+            return False, float('nan'), float('nan')
+        patch = img[vc - half:vc + half + 1, uc - half:uc + half + 1].reshape(-1, 3)
+        rgb_std = float(patch.std(axis=0).mean())
+        dmed = float('nan')
+        if self.depth is not None:
+            dbuf = np.frombuffer(bytes(self.depth.data),
+                                 np.float32 if '32F' in self.depth.encoding else np.uint16)
+            if dbuf.size == self.depth.width * self.depth.height:
+                d = dbuf.reshape(self.depth.height, self.depth.width).astype(np.float32)
+                if '32F' not in self.depth.encoding:
+                    d = d / 1000.0
+                dp = d[vc - half:vc + half + 1, uc - half:uc + half + 1]
+                dp = dp[np.isfinite(dp)]
+                if dp.size:
+                    dmed = float(np.median(dp))
+        depth_ok = (dmed == dmed) and abs(dmed - z) < tol
+        return depth_ok and rgb_std > 3.0, rgb_std, dmed
 
     def wait_frame(self, timeout=15.0):
         t0 = time.time()
@@ -467,18 +518,40 @@ def main():
                 print(f'apertura dita = {args.gripper_open * 1000:.0f} mm', flush=True)
             print(f'{"leva":>16} | errore | posizione leva nel frame | file', flush=True)
             frame_list = frames or [None] * n_levers
-            for name, goal, frame, center0 in zip(names, arrivals, frame_list, centers):
+            for name, cands, frame, center0 in zip(names, arrivals, frame_list, centers):
                 node.get_logger().info(f'Vista leva {name}...')
-                node.goto(goal, seconds=args.move_seconds)
-                time.sleep(min(args.settle, 1.0))
-                err = node.wait_settled(goal, tol=args.settle_tol)
-                if not (err == err) or err > args.settle_tol:
+                center = lever_from_tf(node, frame) if frame else center0
+                err = float('nan')
+                goal = cands[0]
+                frame_ok = False
+                for k, cand in enumerate(cands, 1):
+                    node.goto(cand, seconds=args.move_seconds)
+                    time.sleep(min(args.settle, 1.0))
+                    err = node.wait_settled(cand, tol=args.settle_tol)
+                    goal = cand
+                    if not (err == err) or err > args.settle_tol:
+                        continue
+                    alvo = node.lever_pixel(center)
+                    if alvo is None:
+                        print(f'{name:>16} | candidata {k}/{len(cands)}: leva non proiettabile',
+                              flush=True)
+                        continue
+                    ok, s_rgb, d_meas = node.sensor_ok(alvo[0], alvo[1], alvo[2])
+                    if ok:
+                        frame_ok = True
+                        if k > 1 or len(cands) > 1:
+                            print(f'{name:>16} | candidata {k}/{len(cands)}: frame valido '
+                                  f'(rgb_std={s_rgb:.1f}, depth={d_meas:.2f} m)', flush=True)
+                        break
+                    print(f'{name:>16} | candidata {k}/{len(cands)}: frame NON valido '
+                          f'(rgb_std={s_rgb:.1f}, depth={d_meas:.2f} m vs z={alvo[2]:.2f} m)',
+                          flush=True)
+                if not frame_ok:
                     det = ', '.join(f'{j}={node.joints.get(j, float("nan")):+.3f}/'
                                     f'{g:+.3f}' for j, g in zip(JOINTS, goal))
-                    print(f'{name:>16} | ATTENZIONE: giunti fermi a {err:.3f} rad dal goal '
-                          f'(frame non affidabile) [{det}]', flush=True)
+                    print(f'{name:>16} | ATTENZIONE: nessuna candidata da un frame valido '
+                          f'[{det}]', flush=True)
                 node.latest = None
-                center = lever_from_tf(node, frame) if frame else center0
                 path = os.path.join(args.out_dir, f'lever_{name}.png')
                 w, h, alvo = node.snapshot(path, center=center, value=args.gripper_open,
                                            label=f'leva {name} @ {args.standoff * 100:.0f} cm')
