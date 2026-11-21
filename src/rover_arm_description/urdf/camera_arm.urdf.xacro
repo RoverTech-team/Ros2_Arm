@@ -185,6 +185,18 @@
 
   </gazebo>
 
+  <!-- Anche il supporto va preservato: senza, urdf2sdf lo FONDE in ee_base e
+       il joint figlio (camera_rover_mount_joint) resta appeso a un link che
+       non esiste piu'. Il render finiva a ~10 cm dal frame ottico usato da
+       TF: errore invisibile guardando lungo il supporto (posa di pre-aim,
+       misurato 6 px sui due ArUco) e grande quanto il supporto quando la
+       camera e' di traverso (330 px a 0.2 m). -->
+  <gazebo reference="camera_support_joint">
+
+    <preserveFixedJoint>true</preserveFixedJoint>
+
+  </gazebo>
+
   <gazebo reference="camera_optical_joint">
 
     <preserveFixedJoint>true</preserveFixedJoint>

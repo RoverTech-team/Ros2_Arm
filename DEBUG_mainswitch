@@ -757,3 +757,44 @@ Frame di evidenza: docs/media/lever_views_20261121/
   ik_main_switch_8cm_25mm.png            (8 cm: FUORI FOV, il gap reale)
   ik_lever_switch_2_8cm_25mm.png
   render_tf_calib.json                   (report della calibrazione)
+
+=== 2026-11-21 (tarda notte) - LE IMMAGINI LEVA ERANO COMUNQUE SBAGLIATE ===
+
+Errore mio: ho guardato solo i numeri (u piu' piccolo di 0 o no) e non le
+immagini. Tutti i frame "leva visibile" mostravano cielo, bordo pannello o
+solo le dita: inutili come prova di visibilita', anche quando la tabella
+diceva "NEL FOV".
+
+Cosa ho verificato guardando davvero:
+1) I 5 frame a 8 cm con la IK nuda hanno la leva fuori dal bordo sinistro
+   (u=-137..-20 px). E' reale, ma l'immagine non mostra nulla di utile.
+2) Con la posa scelta dal view search del demo il main_switch si vede
+   (u=308 v=121 z=0.26) e il mirino cade sulla leva: quella posa e' buona.
+3) Ho aggiunto un aim (scansione j1/polso + verifica con /check_state_validity)
+   per centrare la leva: i frame mostrano la fila leve, ma il MIRINO resta
+   ~80-110 px lontano dalla leva vera.
+
+Causa isolata misurando i blob rossi nel frame reale (pre-aim, dove il TF e'
+calibrato a 6.6 px sugli ArUco):
+  proiezione main_switch = (798,738)
+  blob rossi rilevati    = (540,578) (559,524) (576,600) (617,624) (663,651)
+                           (715,682)
+  => i TAG proiettano giusto (6.6 px) ma le LEVE sono ~80-100 px fuori:
+     l'errore e' nelle COORDINATE delle leve, non nella camera.
+  Le leve usate finora vengono dalla lettura /world/.../pose/info del link
+  (0.677 +-0.115 0.197) e da una misura di profondita' con RGB/depth non
+  sincronizzate (dt 0.16 s). Il link NON e' il centro del pomello rosso:
+  nel panel.urdf.xacro il visual e' a +0.0175 lungo y del link, e il pomello
+  ruota (revolute su x), quindi la posa visibile dipende dallo stato ON/OFF.
+  Errore residuo misurato ~6 cm: non e' spiegabile con il solo offset 0.0175,
+  quindi la quota va presa dal render (o dall'URDF + stato giunto), non da
+  pose/info ne' dalla depth.
+
+Conseguenza: PIN_BASE, TF base, posa sensore e campanatura del supporto sono
+a posto (ArUco 6.6 px, e ho pure aggiunto preserveFixedJoint su
+camera_support_joint, che prima veniva fuso in ee_base). Quello che manca e'
+una misura affidabile della posa delle 5 leve: finche' non c'e', un mirino
+"sulla leva" non e' verificabile e le immagini non vanno pubblicate come
+prova. Il prossimo passo e' ricavare le 5 pose dall'URDF del pannello piu'
+lo stato dei giunti (o misurarle dai blob nel render con la depth
+sincronizzata), poi rifare i 5 frame.
