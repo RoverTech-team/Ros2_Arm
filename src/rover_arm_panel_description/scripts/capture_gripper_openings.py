@@ -79,6 +79,10 @@ def parse_args():
                         'Senza questo flag le dita restano come le ha lasciate il '
                         'demo: la vista leva dipende da uno stato che nessuno '
                         'controlla, e due run non sono confrontabili')
+    p.add_argument('--aim-camera', action='store_true',
+                   help='Dopo la IK cerca (j1 e polso) la posa in cui la leva '
+                        'cade vicino al centro ottico: la punta si scosta di '
+                        'quanto serve alla camera (posa di OSSERVAZIONE)')
     p.add_argument('--seed-joints', nargs=5, type=float, metavar='Q',
                    help='Seed IK (posa di pre-aim): rende la scelta del ramo '
                         'deterministica anche se il demo non ha ancora pre-aimato')
@@ -126,9 +130,12 @@ def lever_from_tf(node, frame, timeout=10.0):
     raise RuntimeError(f'TF non disponibile per {frame}')
 
 
-def compute_arrivals(levers, standoff, frames=None, seed=None):
+def compute_arrivals(levers, standoff, frames=None, seed=None, aim_camera=False):
     """IK di pre-approach con il modulo del demo (richiede MoveIt attivo).
-    Con frames, le posizioni sono lette live da TF e restituite insieme."""
+    Con frames, le posizioni sono lette live da TF e restituite insieme.
+    Con aim_camera, dopo la IK si cerca (j1 e polso) la posa in cui la
+    PROIEZIONE della leva cade vicino al centro ottico: la camera sta 10 cm
+    fuori asse e a 8 cm la IK nuda lascia la leva fuori dal FOV."""
     import importlib.util
     import os
     from ament_index_python.packages import get_package_share_directory
@@ -152,10 +159,59 @@ def compute_arrivals(levers, standoff, frames=None, seed=None):
         arrivals = []
         for center in levers:
             target = center - np.array((standoff, 0.0, 0.0))
-            arrivals.append(node.find_joint_goal(q_start, target, original))
+            goal = node.find_joint_goal(q_start, target, original)
+            if aim_camera:
+                goal = aim_pose(node, ms, goal, np.asarray(center, dtype=float))
+            arrivals.append(goal)
         return arrivals, levers
     finally:
         node.destroy_node()
+
+
+def aim_pose(node, ms, goal, center):
+    """Posa in cui la leva cade vicino al centro ottico (j1 + polso).
+
+    La IK mette la PUNTA sul target, ma la camera e' 10 cm fuori asse: a 8 cm
+    la leva resta 20-140 px fuori dal bordo. Si scandiscono j1 (orizzontale) e
+    polso (verticale) e si tengono solo pose che MoveIt dichiara valide
+    (limiti di giunto e collisioni): una posa fuori limite cambierebbe
+    l'inquadratura di centinaia di pixel rispetto alla previsione.
+    """
+    node.calibrate_camera_geometry(node.get_state())
+    cx, cy = node.cam_K[0, 2], node.cam_K[1, 2]
+    state = node.get_state()
+    cands = []
+    for dj in np.arange(-0.60, 0.6001, 0.02):
+        for dq in np.arange(-0.60, 0.6001, 0.05):
+            q = list(goal)
+            q[0] = goal[0] + dj
+            q[3] = goal[3] + dq
+            rs = ms.put_joints(state, tuple(q))
+            view = node.projected_lever(rs, center)
+            if view is None:
+                continue
+            u, v = view['pixel']
+            if not (0.0 <= u < node.cam_W and 0.0 <= v < node.cam_H):
+                continue
+            score = (max(abs(u - cx), abs(v - cy))
+                     + 40.0 * abs(dj) + 30.0 * abs(dq))
+            if view['occ'] < 8.0:
+                score += 2000.0
+            cands.append((score, tuple(float(x) for x in q), view, dj, dq))
+    cands.sort(key=lambda c: c[0])
+    for cand in cands[:12]:
+        req = ms.GetStateValidity.Request()
+        req.robot_state = ms.put_joints(state, cand[1])
+        req.group_name = 'arm'
+        if ms.call(node, node.valid, req).valid:
+            score, q, view, dj, dq = cand
+            u, v = view['pixel']
+            print(f'   aim: j1 {dj:+.2f} polso {dq:+.2f} rad -> leva '
+                  f'({u:.0f},{v:.0f}) margine={view["margin"]:.0f} px '
+                  f'occl={view["occ"]:+.0f} px', flush=True)
+            return q
+    print('   aim: nessuna posa valida porta la leva nel FOV', flush=True)
+    return goal
 
 
 class Capture(Node):
@@ -363,7 +419,8 @@ def main():
         print(f'IK per {n_levers} leve (standoff {args.standoff * 100:.0f} cm)...',
               flush=True)
         arrivals, centers = compute_arrivals(levers, args.standoff, frames=frames,
-                                              seed=args.seed_joints)
+                                              seed=args.seed_joints,
+                                              aim_camera=args.aim_camera)
         if args.wrist_offset or args.roll_offset:
             # Il view search del demo ruota il polso tenendo ferma la punta;
             # qui basta la rotazione per giudicare la VISIBILITA' (la punta

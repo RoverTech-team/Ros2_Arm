@@ -798,3 +798,49 @@ una misura affidabile della posa delle 5 leve: finche' non c'e', un mirino
 prova. Il prossimo passo e' ricavare le 5 pose dall'URDF del pannello piu'
 lo stato dei giunti (o misurarle dai blob nel render con la depth
 sincronizzata), poi rifare i 5 frame.
+
+=== 2026-11-21 (fine) - POSE DELLE LEVE: CORRETTE, MA IL RENDER NON SEGUE ===
+
+Fatto: le coordinate delle leve ora vengono dall'URDF, non dai link di gz.
+  link nel panel_base: x = 0.050 / 0.108 / 0.165 / 0.223 / 0.280,
+                       y = 0.020, z = 0.220, con il visual del pomello a
+                       (0, +0.0175, 0) nel frame del link.
+  con lo stato dei giunti letto da /world/.../pose/info (il pomello ruota su x)
+  il centro del pomello rosso e' a world (1.280, y, 0.2025)
+  => in base_link: (0.680, y, 0.1825), y = -0.115 .. +0.115
+Prima usavo (0.677, y, 0.197): z sbagliata di 1.45 cm.
+
+Verifica a pre-aim (dove la proiezione degli ArUco e' calibrata a 6.6 px):
+  proiezioni  main (792,588) l1 (711,582) l2 (633,576) l3 (555,570) l4 (481,564)
+  blob rossi  (793,578) (711,571) (632,566) (554,560) (478,555)
+  => accordo entro (1-3, 9-11) px. Coordinate corrette, ordine corretto
+     (main_switch e' il piu' a destra nell'immagine: la camera guarda +X_base,
+     quindi +u corrisponde a -Y_base).
+
+Poi il muro: a 8 cm, con pose "di osservazione" (aim su j1 e polso), il render
+NON segue la proiezione, e l'errore e' di PROFONDITA':
+  posa di aim: 5 leve proiettate a v=437 tutte sulla stessa riga, u = 78..802
+               (passo 180 px), z_cam = 0.21 m
+  render:      le stesse leve hanno passo 140 px
+  => 180/140 = 1.29: il render vede il pannello a ~0.27 m, TF dice 0.21 m.
+     Cioe' la camera del render sta ~6-7 cm piu' indietro di quella usata per
+     proiettare. A pre-aim l'accordo e' invece perfetto (1% sul passo), quindi
+     lo scostamento compare quando il polso ruota.
+
+Escluso che sia il modello:
+  - MoveIt FK di ee_base per la posa di aim: (0.4897, -0.0330, 0.4257)
+  - /world/.../pose/info ee_base:            (0.4897, -0.0330, 0.4257)
+  - TF base_link->ee_base:                   (0.490,  -0.033,  0.426)
+  coincidono al decimo di millimetro. Anche gemini_camera_link combacia tra
+  TF e gz. Quindi il difetto e' DENTRO la posa del sensore nel render, non
+  nella catena cinematica.
+  Ho gia' aggiunto preserveFixedJoint su camera_support_joint (prima
+  camera_support_link veniva fuso in ee_base): nel SDF ora i tre link ci sono,
+  ma il disaccordo a polso ruotato resta.
+
+Stato delle immagini: NON pubblicabili come prova di visibilita'. L'unico
+frame verificato a occhio e' quello del view search del demo sul main_switch
+(lever_main_switch_demo_arrival_25mm.png). Il prossimo passo e' capire dove
+gz mette davvero il sensore: un marker a profondita' nota (o due marker a
+distanze diverse) misura la posa del render in 3D, e da li' si corregge la
+<pose> una volta per tutte.
