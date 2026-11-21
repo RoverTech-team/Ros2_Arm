@@ -356,3 +356,54 @@ il mirino punta giusto ma la vista è coperta dalle dita. PEnsavo che il problem
  
  i problemi potrebbero essere o legati al codice che magari vede il pulsante ma non lo restituisce nei log (sarebbe da esplicitare meglio un mirino se viene visto il pulsante, lho famtto ma di fretta e non ho avuto modo di rivederlo). 
  Altrimenti il problema potrebbe essere che prima, per stimare la presenza dei pulsanti, usavamo rgb+deph. RGB però a breve distanza fa schifo: sarebbe da vedere questo e semmai togliere rgb e dire alla camera di fare solo con depth, perche se chiaramente le dici "cerca la zona rossa qua attorno" ma la zona rossa non la vede, non potra neanche partire con depth.
+=== 2026-11-21 - ESITO: depth RICONOSCE il main_switch ===
+
+DOMANDA ORIGINALE ("depth non lo riconosce") -> RISOLTA.
+
+Misura reale, run headless completo con il supporto camera da 10 cm:
+  main_switch    base=(+0.677, -0.114, +0.175)  panel=(+0.051, +0.024, +0.212)  N=6 scatter=0.7mm
+  lever_switch_1 base=(+0.677, -0.056, +0.176)  panel=(+0.109, +0.024, +0.213)  N=6 scatter=0.6mm
+  lever_switch_2 base=(+0.677, +0.000, +0.177)  panel=(+0.165, +0.023, +0.214)  N=6 scatter=0.5mm
+  lever_switch_3 base=(+0.677, +0.058, +0.175)  panel=(+0.223, +0.023, +0.212)  N=6 scatter=0.6mm
+  lever_switch_4 base=(+0.678, +0.114, +0.174)  panel=(+0.279, +0.022, +0.211)  N=6 scatter=0.6mm
+Le 4 leve + main_switch sono misurate dalla depth con dispersione < 1 mm.
+
+Nota residua: le 7 ROI dei selettori originali (rotary/power) restano
+"depth_assente_o_non_sincronizzata" (34 tentativi falliti, 6 riusciti):
+il pairing RGB/depth e ancora fragile (~15%), ma con >= 3 campioni buoni
+la misura e valida. Se serve, alzare max_rgb_depth_delta_s o mettere in
+coda solo le coppie sincronizzate.
+
+CAUSA VERA DEI "NODI MUTI" (non era il codice della demo):
+1) Dopo il riavvio macOS en0 non ha piu IPv4: CycloneDDS sceglie
+   l'interfaccia sbagliata e la discovery TRA PROCESSI si rompe.
+   Sintomi: detector che non pubblica nulla, gz_ros_control fermo su
+   "Waiting for data on 'robot_description'", ros2 CLI che si pianta.
+   FIX: fissare l'interfaccia a lo0 con CYCLONEDDS_URI:
+     <CycloneDDS><Domain id="any"><General>
+       <Interfaces><NetworkInterface name="lo0"/></Interfaces>
+       <AllowMulticast>spdp</AllowMulticast>
+     </General></Domain></CycloneDDS>
+   poi `export CYCLONEDDS_URI=file://.../cyc_lo.xml`.
+   ROS_LOCALHOST_ONLY=1 da solo NON basta piu (deprecato in Jazzy).
+   Verifica rapida: due processi python che si scambiano una String;
+   se in domain nuovo il subscriber resta vuoto, la discovery e rotta.
+2) Processi orfani: il pkill della launch non uccide i figli. Trovati
+   8 world_to_odom + RSP/spawner/bridge residui che pubblicavano /tf a
+   320+ Hz e saturavano i thread dell'executor del detector (sample:
+   tutto il tempo in tf2_msgs__msg__tf_message__convert_to_py).
+   FIX: terminare per pattern completo (Ros2_A[m]m/install,
+   ros2_humbl[e]/lib, gz si[m]) e controllare "0 residui" prima del run.
+
+RIMANE (non e depth): con il supporto camera da 10 cm il VIEW SEARCH non
+trova nessuna posa utile a 8 cm dal pannello:
+  VISION GUARD: offset camera/ee_base = (+0.130, +0.098, 0.000)
+  pitch=-1.01 -> margine FOV -115 px
+  pitch=-0.91 -> margine FOV  -85 px
+  pitch=-0.71 -> margine FOV  -41 px
+  pitch=-0.51 -> margine FOV   +8 px, ma dito a -54 px (occlusione)
+La leva esce dal FOV (pixel previsto (403, -100)); la Fase 1 viene eseguita
+(errore punta 0.11 cm, arrivo 0.88 cm) ma la validazione RGB-D della Fase 2
+non parte. Non esiste, con questo offset, una posa che veda la leva senza
+il dito davanti: serve rivedere il montaggio (offset laterale/verticale o
+angolazione della camera).
