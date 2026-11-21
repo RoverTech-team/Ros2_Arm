@@ -561,3 +561,30 @@ posa di arrivo del demo (-1.770, -0.904, -0.383, +0.352, 0.000)):
 Con le dita CHIUSE la leva e' gia' libera (+10.7 px > soglia 8), quindi
 --open-gripper non serve; il margine resta 90 px, 6 px sotto la regola del
 demo (96 px): e' quello che fa rifiutare la posa al view search.
+
+=== 2026-11-21 - BUG del calcolo di occlusione (fix) ===
+
+Il modello trattava ogni dito come un CILINDRO di raggio 2.2 cm lungo la
+linea TCP_LOCAL, ignorando lo spessore della piastra e tutta la mano:
+diceva "leva libera a +10.7 px" anche quando il render mostrava la leva
+DIETRO il dito (esempio: apertura 0 mm).
+Fix: il dito e' una LASTRA 4.2 x 14 x 2.2 cm (box della collisione,
+camera_arm.urdf.xacro) con centro (0.016, 0.070, -0.011) nel frame del link.
+Ora si proiettano gli 8 vertici, si prende l'inviluppo convesso e si misura
+la distanza della leva dal poligono (negativa = coperta), contando solo i
+dita piu' vicine della leva. Applicato sia in
+main_switch_pre_approach_AUTO.projected_lever sia in
+optimize_camera_mount.ViewCost.
+
+Numeri corretti a 8 cm (leva 0.680 -0.115 0.220, arrivo del demo):
+  0 mm  occ +6.4 px   -> SOTTO la soglia 8: la leva e' coperta (come nel render)
+  5 mm  occ +75.3 px  Tip 2.2 cm  -> apertura consigliata
+  10 mm occ +145.8 px Tip 4.4 cm
+  25 mm occ +373.7 px Tip 10.7 cm  -> leva completamente visibile
+Margine FOV resta 90 px (< 96): e' la POSA, non l'apertura. Il tool ora
+stampa i due verdetti separati.
+
+CMA-ES rifatto col costo corretto (8/6/5 cm, 15 scene): servono
+dt=(-5.4, +1.7, +1.0) cm e drpy=(+2.9, +4.5, -2.5) deg rispetto al mount
+attuale -> tutte le scene OK, margine 170-245 px, occ 15-115 px.
+(Non applicato all'URDF: da fare al prossimo giro con nuovo render.)

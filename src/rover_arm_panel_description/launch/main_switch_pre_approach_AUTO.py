@@ -123,6 +123,8 @@ MIN_VIEW_MARGIN_PX = 60.0      # la leva deve stare ad almeno 60 px dal bordo im
 CAMERA_MIN_DEPTH_M = 0.10      # leva piu vicina di cosi alla camera = scartata. DA TARARE sul clip "near" della camera nell'SDF
 MIN_OCCLUSION_CLEAR_PX = 8.0   # la leva deve stare ad almeno 8 px dal bordo del dito proiettato
 FINGER_RADIUS_M = 0.022        # raggio del dito nel modello di occlusione (box ~4.2 x 2.2 cm)
+FINGER_BOX_CENTER = (0.016, 0.070, -0.011)   # centro box dito nel frame del link
+FINGER_BOX_HALF = (0.021, 0.070, 0.011)      # semi-estensioni: box 4.2 x 14 x 2.2 cm
 # ---- ROLL DEL POLSO (ee_base_joint_y) ----
 # La camera e' montata sotto il polso: ruotando l'asse di approccio le dita
 # escono dal campo visivo. Provato sulle migliori candidate di pitch.
@@ -665,26 +667,40 @@ class Test(Node): #sto nodo ascolta l'ambiente, decide la traiettoria chiamando 
         margin=min(min(u,self.cam_W-u,v,self.cam_H-v) for u,v,_ in projections)
         u,v,zcam=projections[0]
         mid_penalty=((u-self.cam_W*.50)/self.cam_W)**2+((v-self.cam_H*.51)/self.cam_H)**2
-        # Occlusione da parte delle dita: ogni dito e' un segmento lungo la linea centrale del suo box
-        # (x,z di TCP_LOCAL, y da 0 a TCP_LOCAL[1]) con raggio FINGER_RADIUS_M. Conta solo se il punto
-        # del dito e' piu vicino alla camera della leva (altrimenti sta dietro e non copre nulla).
+        # Occlusione: le dita sono LASTRE (box 4.2 x 14 x 2.2 cm), non cilindri.
+        # Si proiettano gli 8 vertici e si misura la distanza (px) della leva dal
+        # poligono: negativa = leva coperta. Conta solo il dito che sta davanti
+        # alla leva (piu' vicino alla camera).
         occ=float('inf')
         for name in ('ee_finger1','ee_finger2'):
             fp=poses[name]
             p0=np.array((fp.position.x,fp.position.y,fp.position.z),float)
-            for s in np.linspace(0.0,1.0,9):
-                local=(TCP_LOCAL[0],TCP_LOCAL[1]*float(s),TCP_LOCAL[2])
-                pf=p0+np.array(rot(fp.orientation,local))
-                pcf=R_cam.T@(pf-p_cam)
-                if pcf[2]<0.03:
-                    continue
-                uf=fx*pcf[0]/pcf[2]+cx
-                vf=fy*pcf[1]/pcf[2]+cy
-                radius_px=fx*FINGER_RADIUS_M/pcf[2]
-                for ul,vl,zl in projections:
-                    if pcf[2]>zl+0.01:
-                        continue
-                    occ=min(occ,math.hypot(ul-uf,vl-vf)-radius_px)
+            Rf=rotation_matrix(fp.orientation)
+            box_center=p0+Rf@np.array(FINGER_BOX_CENTER)
+            z_box=float((R_cam.T@(box_center-p_cam))[2])
+            if z_box>projections[0][2]+0.01:
+                continue
+            poly=[]
+            ok=True
+            for sx in (-1.0,1.0):
+                for sy in (-1.0,1.0):
+                    for sz in (-1.0,1.0):
+                        off=np.array(FINGER_BOX_HALF)*np.array((sx,sy,sz))
+                        pf=p0+Rf@(np.array(FINGER_BOX_CENTER)+off)
+                        pcf=R_cam.T@(pf-p_cam)
+                        if pcf[2]<=0.03:
+                            ok=False
+                            break
+                        poly.append((float(fx*pcf[0]/pcf[2]+cx),
+                                     float(fy*pcf[1]/pcf[2]+cy)))
+                    if not ok: break
+                if not ok: break
+            if not ok:
+                continue
+            hull=cv2.convexHull(np.array(poly,dtype=np.float32))
+            for ul,vl,_zl in projections:
+                d=float(cv2.pointPolygonTest(hull,(float(ul),float(vl)),True))
+                occ=min(occ,-d)      # dentro il poligono -> negativo = coperta
         fdir=np.array(rot(poses['ee_finger1'].orientation,(0.,1.,0.)),float)
         elev=math.degrees(math.asin(float(np.clip(fdir[2],-1.0,1.0))))
         return dict(margin=float(margin),mid=float(mid_penalty),pixel=(float(u),float(v)),

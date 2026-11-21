@@ -47,6 +47,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
+import cv2
 import numpy as np
 
 import rclpy
@@ -58,6 +59,8 @@ CAMERA_MIN_DEPTH_M = 0.08
 CAMERA_MAX_DEPTH_M = 1.20
 DEFAULT_OPENINGS = (0.0,)
 SLIDER = 'slider_joint'
+FINGER_BOX_CENTER = (0.016, 0.070, -0.011)   # centro box dito nel frame del link
+FINGER_BOX_HALF = (0.021, 0.070, 0.011)      # semi-estensioni: box 4.2 x 14 x 2.2 cm
 
 # Limiti del montaggio, espressi in coordinate ee_base.
 MAX_TRANSLATION_M = 0.15
@@ -170,8 +173,8 @@ class Scene:
     lever_points: np.ndarray      # (3, 3) centro + estremi della leva
     ee_translation: np.ndarray    # (3,)
     ee_rotation: np.ndarray       # (3, 3)
-    finger_points: np.ndarray     # (N, 3)
-    finger_radius_m: float
+    finger_boxes: np.ndarray      # (2, 8, 3) vertici dei box dito
+    finger_centers: np.ndarray    # (2, 3) centri dei box dito
 
 
 @dataclass
@@ -221,20 +224,25 @@ def build_scene(ms, node, original, q_start, name, center, standoff, opening,
     ee_t = np.array((ee.position.x, ee.position.y, ee.position.z), float)
     ee_R = ms.rotation_matrix(ee.orientation)
 
-    samples = []
+    boxes = []
+    centers = []
     for link in ('ee_finger1', 'ee_finger2'):
         fp = poses[link]
         p0 = np.array((fp.position.x, fp.position.y, fp.position.z), float)
-        for s in np.linspace(0.0, 1.0, 9):
-            local = (ms.TCP_LOCAL[0], ms.TCP_LOCAL[1] * float(s), ms.TCP_LOCAL[2])
-            samples.append(p0 + np.array(ms.rot(fp.orientation, local)))
+        Rf = ms.rotation_matrix(fp.orientation)
+        c = p0 + Rf @ np.array(FINGER_BOX_CENTER)
+        corners = [c + Rf @ (np.array(FINGER_BOX_HALF) * np.array((sx, sy, sz)))
+                   for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)]
+        boxes.append(np.asarray(corners))
+        centers.append(c)
     lever = np.array((center,
                       center + np.array((0.0, 0.0, -0.025)),
                       center + np.array((0.0, 0.0, 0.015))))
 
     return Scene(name=name, standoff_m=standoff, opening_m=opening,
                  lever_points=lever, ee_translation=ee_t, ee_rotation=ee_R,
-                 finger_points=np.asarray(samples), finger_radius_m=ms.FINGER_RADIUS_M)
+                 finger_boxes=np.asarray(boxes),
+                 finger_centers=np.asarray(centers))
 
 
 # ---------------------------------------------------------------------------
@@ -283,12 +291,22 @@ class ViewCost:
                     u, self.width - u, v, self.height - v))))
                 margin = float(np.clip(margin, -1e3, 1e3))
 
-            uf, vf, zf = self._project(mount, scene, scene.finger_points)
-            radius_px = self.fx * scene.finger_radius_m / np.maximum(zf, 0.01)
-            dist_px = np.hypot(uf - u[0], vf - v[0]) - radius_px
-            sane = zf > 0.5 * CAMERA_MIN_DEPTH_M
-            nearer = (zf < z[0] - 0.005) & sane
-            occlusion = float(np.min(dist_px[nearer])) if np.any(nearer) else 1e3
+            # Occlusione: le dita sono lastre 4.2 x 14 x 2.2 cm (non cilindri).
+            # Si proietta il box e si misura la distanza della leva dal poligono.
+            occlusion = 1e3
+            sane = True
+            for corners, fcenter in zip(scene.finger_boxes, scene.finger_centers):
+                _uc, _vc, zc = self._project(mount, scene, fcenter)
+                if zc[0] > z[0] - 0.005:
+                    continue                      # dito dietro alla leva
+                uu, vv, zz = self._project(mount, scene, corners)
+                if np.any(zz <= 0.03):
+                    sane = False
+                    continue
+                hull = cv2.convexHull(np.stack([uu, vv], axis=1).astype(np.float32))
+                for ul, vl in zip(u, v):
+                    d = float(cv2.pointPolygonTest(hull, (float(ul), float(vl)), True))
+                    occlusion = min(occlusion, -d)     # dentro -> negativo = coperta
             occlusion = float(np.clip(occlusion, -1e3, 1e3))
 
             penalty = 0.0

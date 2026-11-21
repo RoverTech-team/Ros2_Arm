@@ -188,11 +188,10 @@ def print_table(rows):
                   f'{zcam:6.2f} | {shift:6.1f}', flush=True)
 
 
-def pick(rows, min_occ_px, fov_margin_px, max_tip_cm):
-    """Apertura piu' piccola con leva nel FOV, libera dalle dita e punta stabile."""
+def pick(rows, min_occ_px, max_tip_cm):
+    """Apertura piu' piccola che libera la leva (occ) con punta stabile (Tip)."""
     ok = [r for r in rows
-          if r[5] is None and r[1] >= min_occ_px
-          and r[2] >= fov_margin_px and r[4] <= max_tip_cm]
+          if r[5] is None and r[1] >= min_occ_px and r[4] <= max_tip_cm]
     return min(ok, key=lambda r: r[0]) if ok else None
 
 
@@ -262,16 +261,20 @@ def main():
             if args.images:
                 save_images(ms, n, arrival, rows, args.out_dir)
             print()
-            best = pick(rows, min_occ, fov_margin, max_tip_cm)
+            best = pick(rows, min_occ, max_tip_cm)
             if best:
                 print(f'CONSIGLIATA apertura={best[0]:.3f} m '
-                      f'(occ={best[1]:.0f} px, margine={best[2]:.0f} px, '
-                      f'shift punta={best[4]:.1f} cm)', flush=True)
+                      f'(occ={best[1]:.0f} px, shift punta={best[4]:.1f} cm, '
+                      f'margine={best[2]:.0f} px)', flush=True)
                 print('Uso: --open-gripper true --gripper-open-pos '
                       f'{best[0]:.3f}', flush=True)
+                if best[2] < fov_margin:
+                    print(f"ATTENZIONE: margine FOV {best[2]:.0f} px < {fov_margin:.0f} px. "
+                          "L'apertura risolve l'occlusione; l'inquadratura resta un "
+                          'problema di POSA (view search), non di apertura.', flush=True)
             else:
-                print('Nessuna apertura soddisfa i criteri: tenere le dita chiuse '
-                      'e affidarsi al roll del polso.', flush=True)
+                print('Nessuna apertura libera la leva con la punta stabile: '
+                      'tenere le dita chiuse e affidarsi al roll del polso.', flush=True)
             return
 
         print(f'SCAN DEL SUPPORTO CAMERA: asse {args.stand_axis} di ee_base; '
@@ -285,7 +288,7 @@ def main():
             trial[axis_idx] = float(stand)
             n.camera_mount_translation = trial
             rows = evaluate_arrival(ms, n, arrival, tip0)
-            best = pick(rows, min_occ, fov_margin, max_tip_cm)
+            best = pick(rows, min_occ, max_tip_cm)
             results.append((float(stand), best, rows))
             print(f'\n== {args.stand_axis}={stand:+.3f} m -> offset ee_base='
                   f'({trial[0]:+.3f}, {trial[1]:+.3f}, {trial[2]:+.3f}) m', flush=True)
