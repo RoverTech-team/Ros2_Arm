@@ -573,6 +573,16 @@ class Test(Node): #sto nodo ascolta l'ambiente, decide la traiettoria chiamando 
             raise RuntimeError('IK della punta non trovata entro 1.5 cm senza collisioni. '
                                'Nessun comando al robot.')
         dist, q, source = min(valid_solutions, key=lambda x: x[0])
+        # j1 puo' uscire da (-pi, pi] con la stessa posa fisica: Gazebo poi
+        # CLAMPA il giunto fisico al limite, mentre /joint_states riporta il
+        # comando -> TF descrive un braccio che non e' quello renderizzato
+        # (posa sbagliata ricorrente). Rientriamo nel range canonico.
+        q = np.asarray(q, dtype=float).copy()
+        for idx in range(len(q)):
+            while q[idx] > math.pi:
+                q[idx] -= 2.0 * math.pi
+            while q[idx] < -math.pi:
+                q[idx] += 2.0 * math.pi
         print(f'IK SELEZIONATA: {source}; errore={dist*100:.2f} cm; '
               f'GOAL GIUNTI={fmt(q)}', flush=True)
         return tuple(float(v) for v in q)
