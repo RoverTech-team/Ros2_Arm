@@ -538,3 +538,26 @@ diverso che punta la camera ~30 gradi in alto. Non e' il montaggio (stessa
 distanza, stessa quota, stesso mount): e' la POSA DI ARRIVO.
 Il demo ha gia' il VIEW SEARCH per il main_switch (pitch del polso): va
 esteso alle 4 leve, altrimenti il main_switch resta il caso peggiore.
+
+=== 2026-11-21 - META' FRAME GRIGIA: non e' un bug di rendering ===
+
+Analisi dei frame salvati (docs/media/lever_views/*.png):
+  colore dominante #A0A0A0 (grigio neutro) sul 45% del frame;
+  #9595AA (7.7%) = background del mondo; #646464/#474747 = facce in ombra.
+  Colonne con colore unico: 0 su 1280  -> nessuna "striscia" non renderizzata.
+Il mondo panel_interaction.world ha <background>0.3 0.3 0.4</background>,
+<ambient>0.4 0.4 0.4</ambient>, un piano terra 10x10 grigio e nessuna
+texture/skybox: il grigio e' il pavimento/le facce del pannello illuminati
+in modo piatto. Compare quando la camera guarda OLTRE il pannello, cioe'
+quando la leva sta al bordo del FOV (margine 90 px, vedi sotto).
+Il bordo seghettato nella zona grigia e' la shadow map a bassa risoluzione.
+
+Apertura dita (tune_gripper_opening, leva 0.680 -0.115 0.220,
+posa di arrivo del demo (-1.770, -0.904, -0.383, +0.352, 0.000)):
+  0 mm   occ +10.7 px  margine 90  Tip 0.0 cm
+  5 mm   occ +63.1 px  margine 90  Tip 2.2 cm
+  10 mm  occ +136.4 px margine 90  Tip 4.4 cm
+  25 mm  occ +345.7 px margine 90  Tip 10.7 cm
+Con le dita CHIUSE la leva e' gia' libera (+10.7 px > soglia 8), quindi
+--open-gripper non serve; il margine resta 90 px, 6 px sotto la regola del
+demo (96 px): e' quello che fa rifiutare la posa al view search.
