@@ -280,20 +280,39 @@ class Capture(Node):
         if center is not None:
             alvo = self.lever_pixel(center)
             if alvo is not None:
-                u, v, z = alvo
-                cv2.circle(bgr, (int(round(u)), int(round(v))), 32, (0, 255, 0), 2)
-                cv2.drawMarker(bgr, (int(round(u)), int(round(v))),
-                               (0, 255, 0), cv2.MARKER_CROSS, 24, 2)
-                cv2.putText(bgr, f'CHECK RGB-D z={z:.2f}m', (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                self.draw_target(bgr, alvo, w, h)
         if value is not None:
             cv2.putText(bgr, f'opening={value*1000:.0f} mm', (10, h - 20),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
         if label:
             cv2.putText(bgr, label, (10, h - 52),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-        cv2.imwrite(path, bgr)
+        # riferimento fisso al centro ottico: serve a vedere che il mirino
+        # si muove davvero dentro il FOV (non e' ancorato all'immagine)
+        cv2.drawMarker(bgr, (w // 2, h // 2), (160, 160, 160),
+                       cv2.MARKER_TILTED_CROSS, 18, 1)
+        if not cv2.imwrite(path, bgr):
+            raise RuntimeError(f'scrittura immagine fallita: {path}')
         return w, h
+
+    @staticmethod
+    def draw_target(bgr, alvo, w, h):
+        """Mirino libero nel FOV: segue la proiezione, si ferma al bordo con
+        una freccia se la leva e' fuori immagine."""
+        u, v, z = float(alvo[0]), float(alvo[1]), float(alvo[2])
+        inside = (0.0 <= u < w) and (0.0 <= v < h)
+        color = (0, 255, 0) if inside else (0, 165, 255)
+        uc = int(round(min(max(u, 14.0), w - 15.0)))
+        vc = int(round(min(max(v, 14.0), h - 15.0)))
+        cv2.circle(bgr, (uc, vc), 26, color, 2)
+        cv2.drawMarker(bgr, (uc, vc), color, cv2.MARKER_CROSS, 20, 2)
+        if not inside:
+            dx = int(max(-90.0, min(90.0, (u - uc))))
+            dy = int(max(-90.0, min(90.0, (v - vc))))
+            cv2.arrowedLine(bgr, (uc, vc), (uc + dx, vc + dy), color, 2, tipLength=0.35)
+        testo = (f'leva u={u:.0f} v={v:.0f} z={z:.2f}m  '
+                 + ('nel FOV' if inside else 'FUORI FOV'))
+        cv2.putText(bgr, testo, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
 
 def main():
