@@ -407,3 +407,31 @@ La leva esce dal FOV (pixel previsto (403, -100)); la Fase 1 viene eseguita
 non parte. Non esiste, con questo offset, una posa che veda la leva senza
 il dito davanti: serve rivedere il montaggio (offset laterale/verticale o
 angolazione della camera).
+
+=== 2026-11-21 - OTTIMIZZATORE HEADLESS: scansiona anche il supporto camera ===
+
+tune_gripper_opening.py ora accetta:
+  --stand-axis {x,y,z}  asse di ee_base lungo cui spostare il mount (default z)
+  --stand-values M ...  valori ASSOLUTI (m) dell'offset camera su quell'asse
+  --fov-margin PX       margine minimo dal bordo (default: regola del demo, 96 px)
+Per ogni valore stampa apertura/occ/margine/Tip, dice QUALE vincolo manca
+(FOV, occlusione, Tip) e chiude con riepilogo + riga camera_mount_joint da
+mettere in camera_arm.urdf.xacro. Senza --stand-values il comportamento e
+identico a prima.
+
+Misure sul montaggio attuale (arrivo a 8 cm, leva (0.677,-0.114,0.175),
+offset calibrato x=+0.130 y=+0.098 z=0.000):
+  z=+0.120 .. -0.060 -> margine sempre -118 px: l'asse verticale NON cambia
+      il margine (il vincolo e orizzontale), quindi l'altezza del supporto
+      da sola non risolve.
+  y=+0.098 -> margine -119 px
+  y=+0.000 -> margine  +38 px, occ max +49.9 px
+  y=-0.020 -> margine  +59 px, occ max +23.6 px
+  y=-0.040 -> margine  +78 px, occ max  +6.6 px
+  y=-0.060 -> margine  +94 px, occ max  -3.7 px
+  y=-0.080 -> margine +109 px, occ negativo
+Compromesso: avvicinando la camera all'asse (y -> 0) si guadagna FOV ma il
+dito copre la leva; spostandola di lato (y -> -0.06) si guadagna margine ma
+il dito torna davanti. Nessun valore di un solo asse soddisfa margine >= 96 px
+e occ >= 8 px: serve un offset composto (y tra -0.04 e -0.06 con x maggiore,
+oppure camera inclinata), da cercare con --stand-axis y e poi x.

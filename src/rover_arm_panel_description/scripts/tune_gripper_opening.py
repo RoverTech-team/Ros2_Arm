@@ -19,6 +19,13 @@ pre-approach (8 cm) calcolata con la stessa IK del demo:
             causato dalla rotazione del dito sul proprio giunto
 Stampa una tabella e suggerisce l'apertura piu' piccola che libera la leva
 senza spostare la punta oltre 2 cm.
+
+Con --stand-values esegue lo stesso scan per ogni valore dell'altezza del
+supporto camera (offset del mount rispetto a ee_base), cosi' da scegliere
+contemporaneamente montaggio e apertura:
+
+  ros2 run rover_arm_panel_description tune_gripper_opening.py \\
+      --stand-axis z --stand-values 0.0 0.03 0.06 0.09 -0.03 -0.06
 """
 import argparse
 import copy
@@ -69,6 +76,15 @@ def parse_args():
                         help='Salva le immagini di debug delle 3 aperture migliori')
     parser.add_argument('--out-dir', default='/tmp',
                         help='Cartella per le immagini (default /tmp)')
+    parser.add_argument('--stand-axis', choices=('x', 'y', 'z'), default='z',
+                        help='Asse di ee_base lungo cui si sposta il supporto '
+                             'camera (default z = altezza del supporto)')
+    parser.add_argument('--stand-values', nargs='+', type=float, metavar='M',
+                        help='Valori ASSOLUTI (m) dell offset camera sull asse '
+                             'scelto; se assente resta la geometria calibrata da TF')
+    parser.add_argument('--fov-margin', type=float, default=None,
+                        help='Margine minimo (px) dal bordo immagine per considerare '
+                             'la leva visibile (default: regola del demo)')
     return parser.parse_args()
 
 
@@ -141,6 +157,60 @@ def render_view(ms, n, state, center, opening, occ, shift_cm, path):
     return False
 
 
+def evaluate_arrival(ms, n, arrival, tip0):
+    """Righe (apertura, occ, margine, z_cam, Tip, errore) per tutte le aperture."""
+    rows = []
+    for value in OPENINGS:
+        st = with_slider(arrival, value)
+        shift = math.dist(n.fingertip_fk(st), tip0) * 100.0
+        try:
+            view = n.projected_lever(st, n.center0)
+        except Exception as exc:  # calibrazione/collisione
+            rows.append((value, None, None, None, shift, f'errore: {exc}'))
+            continue
+        if view is None:
+            rows.append((value, None, None, None, shift,
+                         'leva non proiettabile (fuori range)'))
+            continue
+        rows.append((value, view['occ'], view['margin'], view['zcam'], shift, None))
+    return rows
+
+
+def print_table(rows):
+    print(f'{"apertura":>9} | {"occ":>6} | {"margine":>7} | {"z_cam":>6} | {"Tip":>6}',
+          flush=True)
+    print('-' * 48, flush=True)
+    for value, occ, margin, zcam, shift, err in rows:
+        if err:
+            print(f'{value:9.3f} | {err}', flush=True)
+        else:
+            print(f'{value:9.3f} | {occ:6.1f} | {margin:7.0f} | '
+                  f'{zcam:6.2f} | {shift:6.1f}', flush=True)
+
+
+def pick(rows, min_occ_px, fov_margin_px, max_tip_cm):
+    """Apertura piu' piccola con leva nel FOV, libera dalle dita e punta stabile."""
+    ok = [r for r in rows
+          if r[5] is None and r[1] >= min_occ_px
+          and r[2] >= fov_margin_px and r[4] <= max_tip_cm]
+    return min(ok, key=lambda r: r[0]) if ok else None
+
+
+def save_images(ms, n, arrival, rows, out_dir):
+    """Immagini predette delle 3 aperture piu' piccole che liberano la leva."""
+    clear = sorted([r for r in rows if r[5] is None and r[1] >= ms.MIN_OCCLUSION_CLEAR_PX],
+                   key=lambda r: r[0])[:3]
+    if len(clear) < 3:
+        rest = [r for r in rows if r not in clear and r[5] is None]
+        rest.sort(key=lambda r: -r[1])
+        clear += rest[:3 - len(clear)]
+    for value, occ, _margin, _zcam, shift, _err in clear:
+        st = with_slider(arrival, value)
+        path = os.path.join(out_dir, f'tune_open_{int(round(value * 1000)):03d}mm.png')
+        if render_view(ms, n, st, n.center0, value, occ, shift, path):
+            print(f'immagine: {path}', flush=True)
+
+
 def main():
     args = parse_args()
     ms = load_demo_module()
@@ -178,54 +248,97 @@ def main():
             goal = n.find_joint_goal(q_start, target, original)
         arrival = ms.put_joints(original, goal)
         print('Posa di arrivo (8 cm):', ms.fmt(goal), flush=True)
-        print(f'{"apertura":>9} | {"occ":>6} | {"margine":>7} | {"z_cam":>6} | {"Tip":>6}',
-              flush=True)
-        print('-' * 48, flush=True)
-
         tip0 = n.fingertip_fk(with_slider(arrival, 0.0))
-        rows = []
-        for value in OPENINGS:
-            st = with_slider(arrival, value)
-            tip = n.fingertip_fk(st)
-            shift = math.dist(tip, tip0) * 100.0
-            try:
-                view = n.projected_lever(st, n.center0)
-            except Exception as exc:  # calibrazione/collisione
-                print(f'{value:9.3f} | errore: {exc}', flush=True)
-                continue
-            if view is None:
-                print(f'{value:9.3f} | leva non proiettabile (fuori range)', flush=True)
-                continue
-            rows.append((value, view['occ'], view['margin'], view['zcam'], shift))
-            print(f'{value:9.3f} | {view["occ"]:6.1f} | {view["margin"]:7.0f} | '
-                  f'{view["zcam"]:6.2f} | {shift:6.1f}', flush=True)
+        base_translation = np.array(n.camera_mount_translation, dtype=float)
+        axis_idx = {'x': 0, 'y': 1, 'z': 2}[args.stand_axis]
+        min_occ = ms.MIN_OCCLUSION_CLEAR_PX
+        fov_margin = (args.fov_margin if args.fov_margin is not None
+                      else max(60.0, min(110.0, 0.12 * min(n.cam_W, n.cam_H))))
+        max_tip_cm = MAX_TIP_SHIFT_M * 100.0
 
-        good = [r for r in rows
-                if r[1] >= ms.MIN_OCCLUSION_CLEAR_PX and r[4] <= MAX_TIP_SHIFT_M * 100.0]
+        if not args.stand_values:
+            rows = evaluate_arrival(ms, n, arrival, tip0)
+            print_table(rows)
+            if args.images:
+                save_images(ms, n, arrival, rows, args.out_dir)
+            print()
+            best = pick(rows, min_occ, fov_margin, max_tip_cm)
+            if best:
+                print(f'CONSIGLIATA apertura={best[0]:.3f} m '
+                      f'(occ={best[1]:.0f} px, margine={best[2]:.0f} px, '
+                      f'shift punta={best[4]:.1f} cm)', flush=True)
+                print('Uso: --open-gripper true --gripper-open-pos '
+                      f'{best[0]:.3f}', flush=True)
+            else:
+                print('Nessuna apertura soddisfa i criteri: tenere le dita chiuse '
+                      'e affidarsi al roll del polso.', flush=True)
+            return
+
+        print(f'SCAN DEL SUPPORTO CAMERA: asse {args.stand_axis} di ee_base; '
+              f'offset calibrato=({base_translation[0]:+.3f}, '
+              f'{base_translation[1]:+.3f}, {base_translation[2]:+.3f}) m; '
+              f'margine FOV minimo={fov_margin:.0f} px, occ minima={min_occ:.0f} px',
+              flush=True)
+        results = []
+        for stand in args.stand_values:
+            trial = base_translation.copy()
+            trial[axis_idx] = float(stand)
+            n.camera_mount_translation = trial
+            rows = evaluate_arrival(ms, n, arrival, tip0)
+            best = pick(rows, min_occ, fov_margin, max_tip_cm)
+            results.append((float(stand), best, rows))
+            print(f'\n== {args.stand_axis}={stand:+.3f} m -> offset ee_base='
+                  f'({trial[0]:+.3f}, {trial[1]:+.3f}, {trial[2]:+.3f}) m', flush=True)
+            print_table(rows)
+            if best:
+                print(f'  VALIDA: apertura={best[0]:.3f} m, occ={best[1]:+.0f} px, '
+                      f'margine={best[2]:.0f} px, Tip={best[4]:.1f} cm', flush=True)
+            else:
+                finite = [r for r in rows if r[5] is None]
+                usable_tip = [r for r in finite if r[4] <= max_tip_cm]
+                if usable_tip:
+                    print(f'  nessuna apertura valida: margine max='
+                          f'{max(r[2] for r in usable_tip):.0f} px (serve {fov_margin:.0f}), '
+                          f'occ max={max(r[1] for r in usable_tip):+.1f} px (serve {min_occ:.0f}), '
+                          f'[solo aperture con Tip <= {max_tip_cm:.0f} cm]', flush=True)
+                elif finite:
+                    print(f'  nessuna apertura valida: tutte oltre il limite Tip '
+                          f'({max_tip_cm:.0f} cm)', flush=True)
+                else:
+                    print('  nessuna apertura valida (proiezione impossibile)', flush=True)
+        n.camera_mount_translation = base_translation
+
+        print('\n== RIEPILOGO SUPPORTO CAMERA ==', flush=True)
+        print(f'{"stand":>8} | {"apertura":>8} | {"occ":>6} | {"margine":>7} | {"Tip":>6}',
+              flush=True)
+        print('-' * 52, flush=True)
+        for stand, best, _rows in results:
+            if best:
+                print(f'{stand:8.3f} | {best[0]:8.3f} | {best[1]:6.1f} | '
+                      f'{best[2]:7.0f} | {best[4]:6.1f}', flush=True)
+            else:
+                print(f'{stand:8.3f} |        - |      - |       - |      -', flush=True)
+
+        usable = [r for r in results if r[1] is not None]
+        if not usable:
+            print('\nNessuna altezza del supporto rende la leva visibile: cambiare '
+                  'anche offset laterale/avanzamento o angolazione della camera.',
+                  flush=True)
+            return
+        stand, best, rows = max(
+            usable, key=lambda r: (r[1][2], -abs(r[0] - base_translation[axis_idx])))
+        chosen = base_translation.copy()
+        chosen[axis_idx] = stand
+        print(f'\nCONSIGLIATO supporto camera {args.stand_axis}={stand:+.3f} m con '
+              f'apertura={best[0]:.3f} m (occ={best[1]:.0f} px, '
+              f'margine={best[2]:.0f} px, shift punta={best[4]:.1f} cm)', flush=True)
+        print('camera_mount_joint in camera_arm.urdf.xacro -> '
+              f'xyz="{chosen[0]:.3f} {chosen[1]:.3f} {chosen[2]:.3f}"', flush=True)
+        print(f'Uso: --open-gripper true --gripper-open-pos {best[0]:.3f}', flush=True)
         if args.images:
-            # le 3 aperture PIU' PICCOLE che liberano la leva (trade-off col Tip)
-            clear = [r for r in rows if r[1] >= ms.MIN_OCCLUSION_CLEAR_PX]
-            picks = sorted(clear, key=lambda r: r[0])[:3]
-            if len(picks) < 3:
-                rest = [r for r in rows if r not in picks]
-                rest.sort(key=lambda r: -r[1])
-                picks += rest[:3 - len(picks)]
-            for value, occ, margin, zcam, shift in picks:
-                st = with_slider(arrival, value)
-                path = os.path.join(args.out_dir,
-                                    f'tune_open_{int(round(value * 1000)):03d}mm.png')
-                if render_view(ms, n, st, n.center0, value, occ, shift, path):
-                    print(f'immagine: {path}', flush=True)
-        print()
-        if good:
-            best = min(good, key=lambda r: r[0])
-            print(f'CONSIGLIATA apertura={best[0]:.3f} m '
-                  f'(occ={best[1]:.0f} px, shift punta={best[4]:.1f} cm)', flush=True)
-            print('Uso: --open-gripper true --gripper-open-pos '
-                  f'{best[0]:.3f}', flush=True)
-        else:
-            print('Nessuna apertura soddisfa i criteri: tenere le dita chiuse '
-                  'e affidarsi al roll del polso.', flush=True)
+            n.camera_mount_translation = chosen
+            save_images(ms, n, arrival, rows, args.out_dir)
+            n.camera_mount_translation = base_translation
     finally:
         n.destroy_node()
         if rclpy.ok():
