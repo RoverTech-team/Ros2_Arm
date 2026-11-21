@@ -34,6 +34,7 @@ install(
     scripts/test_aruco_depth_search_center.py
     scripts/tune_gripper_opening.py
     scripts/capture_gripper_openings.py
+    scripts/optimize_camera_mount.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
