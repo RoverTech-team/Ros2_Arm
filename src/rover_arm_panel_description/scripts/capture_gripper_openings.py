@@ -79,6 +79,8 @@ def parse_args():
                         'Senza questo flag le dita restano come le ha lasciate il '
                         'demo: la vista leva dipende da uno stato che nessuno '
                         'controlla, e due run non sono confrontabili')
+    p.add_argument('--label', help='Etichetta stampata sull\'immagine (es. il '
+                        'nome della leva quando si usa --lever-center)')
     p.add_argument('--aim-camera', action='store_true',
                    help='Dopo la IK cerca (j1 e polso) la posa in cui la leva '
                         'cade vicino al centro ottico: la punta si scosta di '
@@ -480,7 +482,8 @@ def main():
             time.sleep(args.settle)
             node.latest = None
             path = f'{args.out_dir}/grip_open_{int(round(value*1000)):03d}mm.png'
-            w, h, alvo = node.snapshot(path, value=value, center=args.lever_center)
+            w, h, alvo = node.snapshot(path, value=value, center=args.lever_center,
+                                   label=args.label)
             extra = ''
             if alvo is not None:
                 u, v, z, inside = alvo
