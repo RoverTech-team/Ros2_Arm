@@ -493,3 +493,25 @@ Prossimi passi:
   b) sistemare la terna ottica tra URDF e SDF (rotazione 180 gradi) e
      riverificare con un mirino su una leva nota;
   c) solo dopo rilanciare la demo completa e riabilitare il checkbox del PR.
+
+=== 2026-11-21 - VERIFICA: il rover parte DAVANTI al pannello ===
+
+Layout di spawn NON modificato (demo_rover_panel_depth.launch.py):
+  PANEL_FACE_X = 1.30, PANEL_DISTANCE = 0.70 -> ROBOT_X = 0.60
+  ROBOT_Y = PANEL_FACE_CENTER_Y = 0.165  (centrato sulla larghezza)
+TF in simulazione: panel_base in base_link = (+0.700, -0.165, 0.000)
+=> il rover e' 0.70 m davanti alla faccia e centrato, come da progetto.
+
+Posa di partenza reale (pre-aim del C++): j1 = -1.400 (yaw cinematico),
+j2 = -0.500 (preaim_shoulder_angle -0.8 viene CLAMPATO da max_arm_bend 0.5),
+j3 = +0.120. Con il nuovo montaggio, a questa posa:
+  - il pannello e' inquadrato (bordo superiore a meta' altezza, leve in
+    basso, nessun dito nel FOV);
+  - il detector registra "Entrambi gli ArUco trovati: STOP SCANSIONE" 8 s
+    dopo la mossa di pre-aim.
+Immagine: msdbg/pm_a/grip_open_000mm.png
+
+NOTA: le catture precedenti in cui si vedeva solo cielo usavano j1=-1.505,
+cioe' lo yaw di un run precedente (lo yaw cinematico cambia di ~6 gradi con
+la posa reale del rover). Era un errore del mio script di cattura, non un
+cambio di geometria.
