@@ -23,7 +23,12 @@ Uso tipico:
 
   ros2 run rover_arm_panel_description capture_gripper_openings.py \
       --levers "0.677 -0.114 0.175" "0.677 -0.056 0.176" \
-      --lever-names main_switch lever1 --out-dir /tmp
+      --lever-names main_switch lever1 --out-dir /tmp \
+      --gripper-open 0.025 --seed-joints -1.400 -0.500 0.120 0.0 0.0
+
+Con --gripper-open la vista leva usa la STESSA apertura della validazione a
+posa fissa (frame grip_open_XXXmm.png) e la stampa sull'immagine, cosi' i due
+controlli di visibilita' sono confrontabili.
 
 Salva lever_<nome>.png (o grip_open_XXXmm.png) e stampa un riepilogo.
 """
@@ -69,6 +74,22 @@ def parse_args():
                         'sono lette live, il rover si sposta mentre il braccio lavora')
     p.add_argument('--standoff', type=float, default=0.08,
                    help='Distanza di pre-approach usata dalla IK (m, default 0.08)')
+    p.add_argument('--gripper-open', type=float,
+                   help='Apertura slider_joint (m) impostata prima delle catture. '
+                        'Senza questo flag le dita restano come le ha lasciate il '
+                        'demo: la vista leva dipende da uno stato che nessuno '
+                        'controlla, e due run non sono confrontabili')
+    p.add_argument('--seed-joints', nargs=5, type=float, metavar='Q',
+                   help='Seed IK (posa di pre-aim): rende la scelta del ramo '
+                        'deterministica anche se il demo non ha ancora pre-aimato')
+    p.add_argument('--wrist-offset', type=float, default=0.0,
+                   help='Rotazione aggiunta a ee_base_joint_x (rad) dopo la IK. '
+                        'Misurato a 8 cm: sposta quasi solo v (~1000 px/rad), '
+                        'NON chiude il gap orizzontale')
+    p.add_argument('--roll-offset', type=float, default=0.0,
+                   help='Rotazione aggiunta a ee_base_joint_y (rad). Misurato a '
+                        '8 cm: +0.25/+0.50 rad portano v a 197/357 px con u quasi '
+                        'fermo (-160/-133): NON sostituisce il view search')
     return p.parse_args()
 
 
@@ -105,7 +126,7 @@ def lever_from_tf(node, frame, timeout=10.0):
     raise RuntimeError(f'TF non disponibile per {frame}')
 
 
-def compute_arrivals(levers, standoff, frames=None):
+def compute_arrivals(levers, standoff, frames=None, seed=None):
     """IK di pre-approach con il modulo del demo (richiede MoveIt attivo).
     Con frames, le posizioni sono lette live da TF e restituite insieme."""
     import importlib.util
@@ -124,7 +145,8 @@ def compute_arrivals(levers, standoff, frames=None):
             if not srv.wait_for_service(timeout_sec=60.0):
                 raise RuntimeError('Servizio MoveIt assente: ' + srv.srv_name)
         original = node.get_state()
-        q_start = ms.q_from_state(original)
+        q_start = (np.asarray(seed, dtype=float) if seed is not None
+                   else ms.q_from_state(original))
         if frames:
             levers = [lever_from_tf(node, f) for f in frames]
         arrivals = []
@@ -293,7 +315,12 @@ class Capture(Node):
                        cv2.MARKER_TILTED_CROSS, 18, 1)
         if not cv2.imwrite(path, bgr):
             raise RuntimeError(f'scrittura immagine fallita: {path}')
-        return w, h
+        if center is not None:
+            alvo = self.lever_pixel(center)
+            if alvo is not None:
+                inside = (0.0 <= alvo[0] < w) and (0.0 <= alvo[1] < h)
+                return w, h, (float(alvo[0]), float(alvo[1]), float(alvo[2]), inside)
+        return w, h, None
 
     @staticmethod
     def draw_target(bgr, alvo, w, h):
@@ -335,10 +362,25 @@ def main():
             raise SystemExit('--lever-names deve avere lo stesso numero di leve')
         print(f'IK per {n_levers} leve (standoff {args.standoff * 100:.0f} cm)...',
               flush=True)
-        arrivals, centers = compute_arrivals(levers, args.standoff, frames=frames)
+        arrivals, centers = compute_arrivals(levers, args.standoff, frames=frames,
+                                              seed=args.seed_joints)
+        if args.wrist_offset or args.roll_offset:
+            # Il view search del demo ruota il polso tenendo ferma la punta;
+            # qui basta la rotazione per giudicare la VISIBILITA' (la punta
+            # si sposta, la leva no).
+            arrivals = [tuple(list(q[:3])
+                              + [q[3] + args.wrist_offset, q[4] + args.roll_offset])
+                        for q in arrivals]
         node = Capture()
         try:
-            print(f'{"leva":>16} | errore | file', flush=True)
+            if args.gripper_open is not None:
+                # Stessa apertura della validazione a posa fissa
+                # (grip_open_XXXmm.png): la vista leva va giudicata con le
+                # dita nella posa in cui il demo le userebbe davvero.
+                node.send(node.grip, ['slider_joint'], [args.gripper_open], 1.5)
+                time.sleep(args.settle)
+                print(f'apertura dita = {args.gripper_open * 1000:.0f} mm', flush=True)
+            print(f'{"leva":>16} | errore | posizione leva nel frame | file', flush=True)
             frame_list = frames or [None] * n_levers
             for name, goal, frame, center0 in zip(names, arrivals, frame_list, centers):
                 node.get_logger().info(f'Vista leva {name}...')
@@ -352,9 +394,16 @@ def main():
                 node.latest = None
                 center = lever_from_tf(node, frame) if frame else center0
                 path = os.path.join(args.out_dir, f'lever_{name}.png')
-                w, h = node.snapshot(path, center=center,
-                                     label=f'leva {name} @ {args.standoff * 100:.0f} cm')
-                print(f'{name:>16} | {err:6.3f} | {path}  ({w}x{h})', flush=True)
+                w, h, alvo = node.snapshot(path, center=center, value=args.gripper_open,
+                                           label=f'leva {name} @ {args.standoff * 100:.0f} cm')
+                if alvo is None:
+                    fov = 'leva non proiettabile (TF/ottica)'
+                else:
+                    u, v, z, inside = alvo
+                    fov = (f'u={u:4.0f} v={v:4.0f} z={z:.2f}m '
+                           + ('NEL FOV' if inside else 'FUORI FOV'))
+                print(f'{name:>16} | {err:6.3f} | {fov:30s} | {path}  ({w}x{h})',
+                      flush=True)
         finally:
             node.destroy_node()
             if rclpy.ok():
@@ -374,8 +423,13 @@ def main():
             time.sleep(args.settle)
             node.latest = None
             path = f'{args.out_dir}/grip_open_{int(round(value*1000)):03d}mm.png'
-            w, h = node.snapshot(path, value=value, center=args.lever_center)
-            print(f'{value:8.3f} | {path}  ({w}x{h})', flush=True)
+            w, h, alvo = node.snapshot(path, value=value, center=args.lever_center)
+            extra = ''
+            if alvo is not None:
+                u, v, z, inside = alvo
+                extra = (f'  leva u={u:.0f} v={v:.0f} z={z:.2f}m '
+                         + ('NEL FOV' if inside else 'FUORI FOV'))
+            print(f'{value:8.3f} | {path}  ({w}x{h}){extra}', flush=True)
     finally:
         node.destroy_node()
         if rclpy.ok():

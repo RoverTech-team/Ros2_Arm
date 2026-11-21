@@ -107,6 +107,25 @@ class WorldToOdom(Node):
             ).value
         )
 
+        # In demo Gazebo la posa VERA della base puo' arrivare da gz
+        # (publish_gz_base_tf.py). Due publisher sulla stessa
+        # odom -> base_footprint si scartano a vicenda (TF_OLD_DATA) e il
+        # frame odom non entra mai nell'albero: chi pubblica la posa vera
+        # disattiva questa TF, la statica world -> odom resta.
+        self._publish_base_tf = self.get_parameter_or(
+            "publish_base_tf",
+            rclpy.parameter.Parameter(
+                "publish_base_tf",
+                rclpy.Parameter.Type.BOOL,
+                True
+            )
+        ).value
+        if isinstance(self._publish_base_tf, str):
+            # Override da launch: puo' arrivare come stringa.
+            self._publish_base_tf = self._publish_base_tf.strip().lower() in (
+                "true", "1", "yes")
+        self._publish_base_tf = bool(self._publish_base_tf)
+
         # Broadcaster delle TF.
         self._tf_broadcaster = TransformBroadcaster(self)
         self._static_broadcaster = StaticTransformBroadcaster(self)
@@ -264,6 +283,8 @@ class WorldToOdom(Node):
         )
 
     def _publish_dynamic_tf(self):
+        if not self._publish_base_tf:
+            return
         stamp = self.get_clock().now().to_msg()
 
         self._tf_broadcaster.sendTransform(

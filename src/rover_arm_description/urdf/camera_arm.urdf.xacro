@@ -235,11 +235,21 @@
         a quella del frame ottico.
       -->
 
-      <!-- Posa = origine del joint camera_optical_joint (rpy 1.570796 -1.570796 0):
-           prima era la sua INVERSA (-1.570796 0 -1.570796), quindi il render
-           Gazebo non coincideva con gemini_camera_optical_frame di TF. -->
+      <!-- Posa del sensore Gazebo: il render guarda lungo +X_sensor.
+             Deve coincidere con gli assi di gemini_camera_optical_frame.
+             Questa rotazione orienta il render lungo -Y_link con l'immagine
+             dritta: e' quella con cui sono stati presi i frame di riferimento
+             (docs/media, pannello con il bordo bianco in alto).
+             rpy (1.570796 -1.570796 0) [provato il 21/11] orienta il render
+             lungo +Z_link: la camera guarda il cielo, il pannello esce dal FOV
+             e il detector non trova piu' gli ArUco.
+             rpy (1.570796 0 -1.570796) tiene la direzione ma ribalta
+             l'immagine di 180 gradi (bordo bianco in basso).
+             NOTA: il disallineamento mirino/leva visto il 21/11 NON era la
+             terna ottica (URDF corretto per questa posa) ma il TF della base
+             nominale: vedi publish_gz_base_tf.py. -->
       <pose>
-        0 -0.00755 0 1.570796 -1.570796 0
+        0 -0.00755 0 -1.570796 0 -1.570796
       </pose>
 
       <always_on>true</always_on>
