@@ -588,3 +588,172 @@ CMA-ES rifatto col costo corretto (8/6/5 cm, 15 scene): servono
 dt=(-5.4, +1.7, +1.0) cm e drpy=(+2.9, +4.5, -2.5) deg rispetto al mount
 attuale -> tutte le scene OK, margine 170-245 px, occ 15-115 px.
 (Non applicato all'URDF: da fare al prossimo giro con nuovo render.)
+
+=== 2026-11-21 (sera) - STATO DEL RAMO E REPLICA DEL FRAME 25 mm ===
+
+Stato trovato (git):
+  branch feature/jazzy-panel-vision, 4 commit non pushati, WIP non committato:
+  - demo_rover_panel_depth.launch.py: REVERT di _force_static (modello di nuovo
+    dinamico), ROBOT_Z 0.02 -> 0.12, nuovo nodo gz_base_tf (staged+unstaged);
+  - publish_gz_base_tf.py e config/cyclonedds_lo0.xml nuovi (untracked);
+  - capture_gripper_openings.py: aggiunti --gripper-open e --seed-joints.
+
+Quattro difetti misurati in quel WIP (tutti verificati a video):
+
+1) --gripper-open era DICHIARATO E MAI USATO. Le viste leva giravano con
+   l'apertura lasciata dal demo: la validazione a 25 mm (frame di riferimento
+   docs/media/gripper_openings/grip_open_025mm.png) non era riproducibile.
+   FIX: l'apertura viene comandata prima del ciclo e STAMPATA sull'immagine,
+   cosi' i due controlli di visibilita' sono confrontabili.
+
+2) DUE publisher su odom->base_footprint: world_to_odom (wall time, posa di
+   spawn) e gz_base_tf (sim time, posa vera). tf2 scartava il secondo:
+   TF_OLD_DATA a raffica, frame odom MAI nell'albero, e lever_from_tf() senza
+   base_link->odom. FIX: argomento use_gz_base_tf (default true) ->
+   world_to_odom riceve publish_base_tf:=false e gz_base_tf timbra con
+   l'orologio di SISTEMA (il resto dell'albero e' wall time per via di
+   joint_states_restamper). Verificato: 0 TF_OLD_DATA, un solo restamper.
+
+3) POSA DEL SENSORE (commit 68a4375) SBAGLIATA: rpy (1.570796 -1.570796 0)
+   orienta il render lungo +Z_link. Misurato: camera verso il cielo, pannello
+   fuori FOV, detector senza ArUco (sweep 85 passi a vuoto, j1 lasciato a
+   15.6 rad) e frame tutto cielo. La posa originale (-1.570796 0 -1.570796)
+   e' coerente con camera_optical_joint: x_s=-Y_link, y_s=-Z_link, z_s=+X_link
+   = assi ottici. Il disallineamento mirino/leva del 21/11 NON era la terna
+   ottica: era il TF della base nominale (punto 2). Ripristinata.
+
+4) IL ROVER NON HA APPOGGIO. Senza _force_static il modello viene espulso dal
+   pavimento e si rovescia: misura su /world/panel_demo/pose/info, 3 campioni:
+   z 0.257 -> 0.263, quaternion x -0.206 -> -0.215 (roll 24 -> 25 gradi) e poi
+   stabile a 52 gradi con la camera sul cielo. Le quote del pannello lette da
+   TF erano (-0.600, +0.199, -0.332): geometria di un rover che non esiste.
+   FIX per le validazioni: PIN_BASE=1 ancora la base al mondo con un joint
+   fisso inserito nell'SDF (i giunti del braccio restano liberi e controllati).
+   Modello pinnato: posa identica su tutti i campioni, (0.6, 0.165, 0.25).
+
+Quote leve: NON sono (0.680 +-0.115 0.220) in base_link. Lette da
+/world/panel_demo/pose/info con base a z=0.25:
+  main_switch_knob    (0.680, -0.115, -0.030)
+  lever_switch_1_knob (0.680, -0.057, -0.030)
+  lever_switch_2_knob (0.680,  0.000, -0.030)
+  lever_switch_3_knob (0.680, +0.058, -0.030)
+  lever_switch_4_knob (0.680, +0.115, -0.030)
+Con la z=0.220 il mirino finisce 0.3 m sopra la leva: e' l'errore che sembrava
+"terna ottica ribaltata". Da qui in poi le quote vanno prese da gz/TF.
+
+REPLICA DEL FRAME (stessa forma dell'immagine di riferimento: mirino verde
+sulla leva, "nel FOV", "opening=25 mm"):
+  PIN_BASE=1 ros2 launch rover_arm_panel_description \
+      demo_rover_panel_depth.launch.py use_gazebo:=true use_nav2:=false \
+      headless:=true auto_execute:=false
+  # stop del demo C++ e dell'AUTO, poi:
+  ros2 run rover_arm_panel_description capture_gripper_openings.py \
+      --goto-arrival -1.644 -1.503 -0.274 0.84 0.000 \
+      --openings 0.025 --out-dir docs/media/lever_views_20261121 \
+      --lever-center 0.680 -0.115 -0.030
+  -> docs/media/lever_views_20261121/replica_main_switch_25mm_8cm.png
+     leva u=520 v=169 z=0.21 m, nel FOV, dita fuori dalla leva.
+
+Viste a 8 cm con l'IK del demo (--levers ... --gripper-open 0.025):
+  arrivo IK (-1.644 -1.503 -0.274 +0.641): leva FUORI FOV (u=-167 v=22,
+  z=0.19 m); lever_switch_2 uguale (u=-121 v=2). Le pose IK del demo puntano
+  la camera ~10 gradi a destra della leva: serve il VIEW SEARCH sulle 4 leve
+  (gia' presente per il main_switch, da estendere), non un altro mount.
+  Con +0.20 rad sul polso (ee_base_joint_x) la leva entra: e' esattamente il
+  DOF che il view search deve muovere. Frame: ik_main_switch_8cm_25mm.png.
+
+Resta da fare:
+  a) view search su tutte e 5 le leve (polso) invece del solo main_switch;
+  b) decidere se tenere PIN_BASE per le validazioni e _force_static fuori.
+
+--- AGGIORNAMENTO (stessa sera): la configurazione che RIMETTE IN PIEDI il demo
+
+ROBOT_Z = 0.02 (come a HEAD) + PIN_BASE=1:
+  il modello del demo e' costruito col root a livello del pavimento; con il
+  PIN_BASE la base non viene espulsa ne' si rovescia. Verificato:
+  - posa identica su tutti i campioni: (0.600, 0.165, 0.020), quat (0,0,0,1);
+  - TF_OLD_DATA = 0; un solo /joint_states_restamper;
+  - ArUco trovati ~30 s dopo il pre-aim (con ROBOT_Z=0.25 il pre-aim mira
+    0.25 m sopra il pannello: e' quota di SPAWN, non va alzata);
+  - depth misura tutte e 5 le leve, in linea con i numeri storici:
+      main_switch (0.677, -0.114, 0.197)  Z_cam 0.456
+      lever_switch_1..4 (0.677, -0.056..+0.114, 0.196..0.198)
+  - piano AUTO validato: IK (-1.769, -0.939, -0.386, +0.348), punta/target
+    0.58 cm, "PIANO VALIDATO; NON ESEGUITO".
+=> lo stato "rotto" del WIP era: robot dinamico senza appoggio + TF base
+   doppio + posa sensore 68a4375. Non serviva toccare mount o apertura.
+
+RESIDUO (unico, misurato): il render Gazebo e il TF ottico NON coincidono
+ancora di ~0.13 m in verticale. Con la posa IK a 8 cm e apertura 25 mm:
+  leva main_switch: proiezione TF u=305 v=116 z=0.25 m "nel FOV"
+  render:           la leva sta ~300 px piu' in basso (bordo pannello al
+                    centro-immagine), quindi il mirino cade sul cielo.
+  gz /world/.../pose/info da' per gemini_camera_link ESATTAMENTE la posa del
+  TF (0.450, -0.011, 0.350, stesso quaternione): la catena URDF->SDF del link
+  e' giusta, resta la <pose> del sensore. Provate 3 orientamenti:
+    (-1.570796, 0, -1.570796)  direzione giusta, offset verticale residuo
+    ( 1.570796, -1.570796, 0)  camera sul cielo (nessun ArUco)
+    ( 1.570796, 0, -1.570796)  immagine ribaltata 180 gradi
+  Nota: rpy (1.570796 -1.570796 0) come matrice E' UGUALE a
+  (-1.570796 0 -1.570796): il roll non e' la variabile che sposta l'immagine.
+  PROSSIMO PASSO (economico e definitivo): i due ArUco del pannello hanno
+  posizione nota e vengono gia' rilevati a pixel. Confrontare i 4 angoli
+  rilevati con la proiezione TF degli stessi tag da l'errore render/TF in
+  pixel e in metri, e da li' correggere la <pose> una volta per tutte.
+  I frame docs/media/lever_views_20261121/ik_*_8cm_25mm.png sono la prova:
+  apertura 25 mm applicata e stampata, leva proiettata nel FOV, render 300 px
+  piu' in basso.
+
+=== 2026-11-21 (notte) - IL MIRINO NON COINCIDEVA COL RENDER: RISOLTO ===
+
+Ipotesi in piedi: la <pose> del sensore Gazebo non coincide con
+gemini_camera_optical_frame. Chiusa con una MISURA, non a occhio.
+
+Nuovo tool: scripts/calibrate_render_tf.py (installato nel pacchetto).
+Confronta i 4 angoli dei due ArUco (45 mm, posa nota dall'URDF) rilevati
+nell'immagine vera con la proiezione TF + camera_info degli stessi punti.
+Serve un frame con ENTRAMBI i tag: la posa di pre-aim va bene, la posa di
+arrivo a 8 cm no (un tag esce dal FOV).
+
+Risultato (10 frame, pannello a 46/49 cm, base pinnata a 0.02):
+  errore CAMERA (centro tag, robusto all'ordine degli angoli):
+      (-0.7, -6.5) px   |r| = 6.6 px   ripetibilita' (0.5, 0.1) px
+  in millimetri sul piano del tag:
+      tag 0 (-0.2, -4.6) mm   tag 1 (-0.9, -4.7) mm
+  differenza tra i due tag 0.7 mm  -> offset COSTANTE (traslazione),
+      nessuna componente di rotazione
+  VERDETTO: render e TF ottico COINCIDONO. La <pose> del sensore e' giusta,
+  non va toccata. I ~5 mm residui sono l'offset nominale dell'ottica
+  (0, -0.00755, 0) piu' lo spessore della piastra del marker (1 mm).
+
+=> il commit 68a4375 (posa sensore = rpy del joint ottico) era la REGRESSIONE:
+   orientava il render lungo +Z_link. Ripristinata la posa originale, ora
+   dimostrata giusta dalla misura.
+=> il "disallineamento mirino/leva di ~180 gradi" del 21/11 non e' mai stato
+   un problema di terna ottica: erano (a) il TF base nominale e (b) le QUOTE
+   delle leve sbagliate di 0.25 m (base a 0.25 invece di 0.02). Con quote
+   corrette il mirino cade sulla leva: docs/media/lever_views_20261121/
+   proiezione_vs_render_main_switch.png (leva u=798 v=738 z=0.50 m a pre-aim).
+
+VALIDAZIONE VISIBILITA' A 8 CM, ORA AFFIDABILE (apertura 25 mm applicata e
+stampata sul frame; IK del demo; rimando: la leva nel frame reale):
+  main_switch    u=-144 v= 37 z=0.20 m FUORI FOV
+  lever_switch_1 u=-120 v= 32 z=0.20 m FUORI FOV
+  lever_switch_2 u= -93 v= 29 z=0.20 m FUORI FOV
+  lever_switch_3 u= -62 v= 31 z=0.20 m FUORI FOV
+  lever_switch_4 u= -29 v= 40 z=0.20 m FUORI FOV
+Tutte le leve cadono FUORI dal bordo sinistro di 29-144 px (~2.5-12 gradi):
+e' la PUNTATURA della posa di arrivo, non il mount e non l'apertura.
+Provati gli offset di polso nel tool di cattura (misurati, non a occhio):
+  ee_base_joint_x +0.14 rad -> v 37 -> 174, u quasi fermo (~1000 px/rad su v)
+  ee_base_joint_y +0.25/0.50 rad -> v 197/357, u -160/-133
+Nessuno dei due chiude il gap orizzontale: serve il VIEW SEARCH del demo
+(che sposta la camera di 10 cm fuori asse mantenendo la punta) esteso a
+tutte e 5 le leve, come gia' scritto sopra. Il numero da battere e' questo:
+u >= 0 per tutte, misurato con lo stesso tool.
+
+Frame di evidenza: docs/media/lever_views_20261121/
+  proiezione_vs_render_main_switch.png   (mirino sulla leva, pre-aim)
+  ik_main_switch_8cm_25mm.png            (8 cm: FUORI FOV, il gap reale)
+  ik_lever_switch_2_8cm_25mm.png
+  render_tf_calib.json                   (report della calibrazione)
