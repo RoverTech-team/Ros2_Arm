@@ -79,6 +79,10 @@ def parse_args():
                         'Senza questo flag le dita restano come le ha lasciate il '
                         'demo: la vista leva dipende da uno stato che nessuno '
                         'controlla, e due run non sono confrontabili')
+    p.add_argument('--settle-tol', type=float, default=0.02,
+                   help='Errore giunti massimo (rad) accettato prima di scattare '
+                        '(default 0.02): sopra questa soglia il frame mostra una '
+                        'posa diversa da quella proiettata')
     p.add_argument('--label', help='Etichetta stampata sull\'immagine (es. il '
                         'nome della leva quando si usa --lever-center)')
     p.add_argument('--aim-camera', action='store_true',
@@ -225,6 +229,10 @@ class Capture(Node):
                                  '/gripper_controller/follow_joint_trajectory')
         self.latest = None
         self.caminfo = None
+        self.joints = {}
+        from sensor_msgs.msg import JointState
+        self.create_subscription(JointState, '/joint_states',
+                                 lambda m: self.joints.update(dict(zip(m.name, m.position))), 10)
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.create_subscription(CameraInfo, '/camera/rgbd/camera_info',
@@ -333,6 +341,24 @@ class Capture(Node):
         res = handle.get_result_async()
         rclpy.spin_until_future_complete(self, res, timeout_sec=seconds * 6)
         self.get_logger().info('Posa di arrivo raggiunta.')
+
+    def wait_settled(self, goal, tol=0.02, timeout=25.0):
+        """Aspetta che i giunti siano DAVVERO sul goal prima di fotografare.
+
+        Con movimenti di polso grandi il controller arriva corto (misurato fino
+        a 0.29 rad): lo scatto allora mostra una posa diversa da quella con cui
+        si proietta, e sembra un errore di camera/render che non esiste.
+        """
+        t0 = time.time()
+        err = float('nan')
+        while time.time() - t0 < timeout:
+            rclpy.spin_once(self, timeout_sec=0.05)
+            if all(j in self.joints for j in JOINTS):
+                err = max(abs(self.joints[j] - g) for j, g in zip(JOINTS, goal))
+                if err <= tol:
+                    return err
+            time.sleep(0.2)
+        return err
 
     def current_joints(self, timeout=5.0):
         from sensor_msgs.msg import JointState
@@ -444,12 +470,13 @@ def main():
             for name, goal, frame, center0 in zip(names, arrivals, frame_list, centers):
                 node.get_logger().info(f'Vista leva {name}...')
                 node.goto(goal, seconds=args.move_seconds)
-                time.sleep(args.settle)
-                cur = node.current_joints()
-                err = max(abs(cur[j] - g) for j, g in zip(JOINTS, goal)) if cur else float('nan')
-                if err > 0.05:
-                    print(f'{name:>16} | ATTENZIONE: giunti fermi a {err:.3f} rad dal goal',
-                          flush=True)
+                time.sleep(min(args.settle, 1.0))
+                err = node.wait_settled(goal, tol=args.settle_tol)
+                if not (err == err) or err > args.settle_tol:
+                    det = ', '.join(f'{j}={node.joints.get(j, float("nan")):+.3f}/'
+                                    f'{g:+.3f}' for j, g in zip(JOINTS, goal))
+                    print(f'{name:>16} | ATTENZIONE: giunti fermi a {err:.3f} rad dal goal '
+                          f'(frame non affidabile) [{det}]', flush=True)
                 node.latest = None
                 center = lever_from_tf(node, frame) if frame else center0
                 path = os.path.join(args.out_dir, f'lever_{name}.png')

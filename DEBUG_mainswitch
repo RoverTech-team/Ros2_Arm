@@ -864,3 +864,43 @@ dal bordo; con la posa del view search del demo il main_switch si vede
 pannello ~7 cm piu' lontano di TF (passo 140 px contro 180 px proiettati),
 quindi un mirino a 8 cm NON e' ancora affidabile: quello va chiuso prima di
 usare i frame ravvicinati come prova.
+
+=== DIAGNOSI DEL FANTOMATICO "7 cm render-vs-TF" ===
+
+NON e' un disallineamento render/TF. E' la posa di cattura che non esiste.
+
+Misure che escludono la camera:
+  posa di pre-aim, polso 0.0 : errore ArUco (-0.7, -6.5) px
+  stessa posa, polso +0.20   : (-0.3, -7.5) px
+  stessa posa, polso -0.20   : (-0.7, -6.5) px
+  leve a polso -0.20 (proiezione contro blob rossi del render):
+     proj (796,739) (720,733) (648,727) (576,720) (507,714)
+     blob (796,729) (720,722) (648,716) (575,710) (506,705)
+   -> 0-1 px in orizzontale, ~10 px in verticale (l'offset dell'ottica,
+      0.00755 m: 10 px a 0.5 m). Camera e TF coincidono: 7 px, sempre.
+
+Da dove venivano i "7 cm" e i "19 gradi":
+  il frame anomalo era quello in cui il controller NON aveva raggiunto il
+  goal. Dump dei giunti al momento dello scatto:
+      j1       -1.590 / -1.590
+      j2       -1.155 / -1.155
+      j3       -0.187 / -0.187
+      ee_base_x  -0.010 / +0.716   <-- FERMO AL LIMITE INFERIORE
+      ee_base_y  -0.000 / +0.000
+  Con il polso a -0.010 invece di +0.716 la camera e' ruotata e piu'
+  lontana: la fila delle leve si presenta con passo 140 px invece di 181 e
+  il mirino proiettato (calcolato sul goal) finisce fuori. Non e' un errore
+  di proiezione: e' un errore di POSA. Il passo che cresce lungo la fila
+  (134 -> 171 px) e' la prospettiva vista da una camera ruotata rispetto a
+  quella usata per proiettare.
+  Perche' il giunto va al limite: a 8 cm la posa "di osservazione" chiede
+  j1 + 0.32..0.34 rad e polso +0.40 con la punta a 8 cm dal pannello; il
+  braccio tocca/satura e il polso crolla al limite inferiore. La validita'
+  del goal (check_state_validity) passa perche' e' valutata sul goal, non
+  sul fatto che il controller riesca a tenerlo.
+
+FIX nel tool: prima dello scatto si attende che i giunti siano davvero sul
+goal (--settle-tol, default 0.02 rad, polling su /joint_states, nessun nuovo
+goal) e in caso contrario la riga e' marcata "frame non affidabile" e stampa
+per giunto goal/attuale. Cosi' un frame sbagliato non puo' piu' passare per
+buono senza dirlo.
