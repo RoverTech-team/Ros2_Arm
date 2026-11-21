@@ -515,3 +515,26 @@ NOTA: le catture precedenti in cui si vedeva solo cielo usavano j1=-1.505,
 cioe' lo yaw di un run precedente (lo yaw cinematico cambia di ~6 gradi con
 la posa reale del rover). Era un errore del mio script di cattura, non un
 cambio di geometria.
+
+=== 2026-11-21 - CMA-ES DALLA POSA DI PARTENZA VERA + 5 RENDER REALI ===
+
+Ottimizzazione rifatta con il braccio in pre-aim reale (-1.400, -0.500,
+0.120) e le posizioni leve lette live da TF (0.680, +-0.115, 0.220):
+  standoff 8/6/5 cm, 15 scene -> TUTTE valide nel modello
+  (margine 100-160 px, occ 8-97 px)
+  delta rispetto al montaggio GIA' applicato: dt=(-8, +2, +5) mm,
+  drpy=(-0.1, +0.2, 0.0) deg
+=> il montaggio attuale e' gia' praticamente l'ottimo per queste pose:
+   non serve ritoccare l'URDF (8 mm sono sotto il rumore del modello).
+
+Render reali a 8 cm con IK dal pre-aim (immagini in msdbg/lever_*.png):
+  lever_switch_2 : BUONA  (fila leve intera, dita sopra)
+  lever_switch_3 : BUONA
+  lever_switch_4 : MARGINALE (leve al bordo alto del pannello)
+  lever_switch_1 : SCARSA  (si vede solo l'angolo del pannello in basso)
+  main_switch    : SCARSA  (idem)
+Le due scarse sono le leve con y<0: l'IK del demo sceglie un ramo di polso
+diverso che punta la camera ~30 gradi in alto. Non e' il montaggio (stessa
+distanza, stessa quota, stesso mount): e' la POSA DI ARRIVO.
+Il demo ha gia' il VIEW SEARCH per il main_switch (pitch del polso): va
+esteso alle 4 leve, altrimenti il main_switch resta il caso peggiore.
