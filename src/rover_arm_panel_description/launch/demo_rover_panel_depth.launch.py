@@ -204,6 +204,13 @@ def generate_launch_description():
                                           "niente finestra OpenCV del detector). Utile per debug a basso carico")
     )
     declared_arguments.append(
+        DeclareLaunchArgument("detector_gui", default_value="true",
+                              description="True: finestre OpenCV del detector. Su macOS vanno "
+                                          "disattivate (headless:=false detector_gui:=false) se si "
+                                          "vuole la GUI di Gazebo: le finestre cv2 in un thread "
+                                          "rclpy fanno terminare il nodo con NSException")
+    )
+    declared_arguments.append(
         DeclareLaunchArgument("use_gz_base_tf", default_value="true",
                               description="True: odom->base_footprint viene dalla posa VERA del modello in "
                                           "Gazebo (publish_gz_base_tf.py) e world_to_odom non la pubblica. "
@@ -211,6 +218,7 @@ def generate_launch_description():
     )
     preaim_enabled = LaunchConfiguration("preaim_enabled")
     headless = LaunchConfiguration("headless")
+    detector_gui = LaunchConfiguration("detector_gui")
     use_gz_base_tf = LaunchConfiguration("use_gz_base_tf")
     use_nav2 = LaunchConfiguration("use_nav2")
     use_gazebo = LaunchConfiguration("use_gazebo")
@@ -803,7 +811,8 @@ def generate_launch_description():
         parameters=[
             {"use_sim_time": True},
             {"enable_gui": ParameterValue(
-                PythonExpression(["'", headless, "' != 'true'"]), value_type=bool)},
+                PythonExpression(["'", headless, "' != 'true' and '",
+                                  detector_gui, "' == 'true'"]), value_type=bool)},
             {"assume_vertical_panel": True},
         ],
         output="both",
