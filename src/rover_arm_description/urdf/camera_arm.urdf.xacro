@@ -81,14 +81,54 @@
     fisicamente prima delle prove di contatto.
   -->
 
-  <joint name="camera_rover_mount_joint" type="fixed">
+  <!-- Supporto laterale da 10 cm, PERPENDICOLARE al piano di apertura
+       delle dita: le dita si aprono lungo Z (finger1 a z=-0.055, finger2 a
+       z=+0.055) e si estendono lungo Y; il supporto esce lungo X.
+       Serve a portare la camera fuori dall'ombra delle dita.
+       SOLO VISUAL: nessuna collision, per non introdurre un ingombro che
+       bloccherebbe la pianificazione a 5-8 cm dal pannello. Su hardware
+       reale il supporto va progettato e poi aggiunto anche come collision. -->
+  <link name="camera_support_link">
+    <visual>
+      <origin xyz="0.05 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.10 0.016 0.016"/>
+      </geometry>
+      <material name="support_grey">
+        <color rgba="0.35 0.35 0.38 1.0"/>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.00001" ixy="0.0" ixz="0.0" iyy="0.00005" iyz="0.0"
+               izz="0.00005"/>
+    </inertial>
+  </link>
+
+  <joint name="camera_support_joint" type="fixed">
 
     <parent link="ee_base"/>
+
+    <child link="camera_support_link"/>
+
+    <!-- Ottimizzato con optimize_camera_mount.py (CMA-ES, 6 DOF):
+         porta la camera a dt=(-4.6,-1.3,+3.1) cm e drpy=(+2.8,+1.6,+2.3) deg
+         rispetto al montaggio precedente (0.03 0.09 0.0). Con questa terna
+         tutte e 5 le leve restano nel FOV a 8/6/5 cm con il dito fuori. -->
+    <origin
+      xyz="-0.0153 0.0721 0.0333"
+      rpy="0.04887 0.02793 0.04014"/>
+
+  </joint>
+
+  <joint name="camera_rover_mount_joint" type="fixed">
+
+    <parent link="camera_support_link"/>
 
     <child link="gemini_camera_link"/>
 
     <origin
-      xyz="0.03 0.09 0.0"
+      xyz="0.10 0.0 0.0"
       rpy="0 0 3.141593"/>
 
   </joint>
@@ -145,6 +185,18 @@
 
   </gazebo>
 
+  <!-- Anche il supporto va preservato: senza, urdf2sdf lo FONDE in ee_base e
+       il joint figlio (camera_rover_mount_joint) resta appeso a un link che
+       non esiste piu'. Il render finiva a ~10 cm dal frame ottico usato da
+       TF: errore invisibile guardando lungo il supporto (posa di pre-aim,
+       misurato 6 px sui due ArUco) e grande quanto il supporto quando la
+       camera e' di traverso (330 px a 0.2 m). -->
+  <gazebo reference="camera_support_joint">
+
+    <preserveFixedJoint>true</preserveFixedJoint>
+
+  </gazebo>
+
   <gazebo reference="camera_optical_joint">
 
     <preserveFixedJoint>true</preserveFixedJoint>
@@ -183,7 +235,22 @@
     i flussi per mantenere l'allineamento.
   -->
 
-  <gazebo reference="gemini_camera_link">
+  <!-- Il sensore e' agganciato DIRETTAMENTE a ee_base con la posa composta
+       (supporto + mount + frame ottico). Con il sensore dentro
+       gemini_camera_link il render NON seguiva i due giunti di polso
+       ee_base_joint_x/y: misurato con la depth, la camera vera stava
+       0.27-0.39 m piu' lontana di TF, esattamente l'offset del polso
+       (-0.028, 0, 0.2715). Agganciandolo a ee_base la catena e' quella
+       giusta e il sensore segue i giunti.
+       Posa = ee_base -> gemini_camera_optical_frame (calcolata dai tre
+       offset dell'URDF: supporto -0.0153 0.0721 0.0333 rpy 0.04887 0.02793
+       0.04014, mount 0.10 0 0 rpy 0 0 3.141593, ottico 0 -0.00755 0
+       rpy 1.570796 -1.570796 0), poi ruotata di M perche' la camera Gazebo
+       guarda +X mentre la terna ottica ha z avanti:
+       R_sensore = R_ottico * [[0,-1,0],[0,0,-1],[1,0,0]].
+       Controllo: applicata nel link, ridà esattamente la posa originale
+       (-1.570796 0 -1.570796) che era quella giusta. -->
+  <gazebo reference="ee_base">
 
     <sensor name="gemini_camera" type="rgbd_camera">
 
@@ -195,8 +262,21 @@
         a quella del frame ottico.
       -->
 
+      <!-- Posa del sensore Gazebo: il render guarda lungo +X_sensor.
+             Deve coincidere con gli assi di gemini_camera_optical_frame.
+             Questa rotazione orienta il render lungo -Y_link con l'immagine
+             dritta: e' quella con cui sono stati presi i frame di riferimento
+             (docs/media, pannello con il bordo bianco in alto).
+             rpy (1.570796 -1.570796 0) [provato il 21/11] orienta il render
+             lungo +Z_link: la camera guarda il cielo, il pannello esce dal FOV
+             e il detector non trova piu' gli ArUco.
+             rpy (1.570796 0 -1.570796) tiene la direzione ma ribalta
+             l'immagine di 180 gradi (bordo bianco in basso).
+             NOTA: il disallineamento mirino/leva visto il 21/11 NON era la
+             terna ottica (URDF corretto per questa posa) ma il TF della base
+             nominale: vedi publish_gz_base_tf.py. -->
       <pose>
-        0 -0.00755 0 -1.570796 0 -1.570796
+        0.084288 0.083647 0.030876 -1.542833 -0.048851 1.609570
       </pose>
 
       <always_on>true</always_on>
@@ -222,10 +302,15 @@
           <height>800</height>
         </image>
 
-        <!-- Clipping del rendering -->
+        <!-- Clipping del rendering.
+             near=0.01 m (era 0.05): a 5-8 cm dal pannello le dita e i
+             bordi del pannello finivano DENTRO il near plane e venivano
+             tagliati, lasciando porzioni di FOV non renderizzate.
+             La distanza minima di misura della depth resta gestita dal
+             filtro software (0.05 m), non dal clip. -->
 
         <clip>
-          <near>0.05</near>
+          <near>0.002</near>
           <far>1.0</far>
         </clip>
 
@@ -233,8 +318,13 @@
 
         <depth_camera>
 
+          <!-- Stesso near del flusso RGB: evita buchi di profondita'
+               quando dita/pannello sono a pochi cm dalla camera.
+               Il limite di 0.05 m della Gemini reale resta applicato
+               dal filtro software del detector. -->
+
           <clip>
-            <near>0.05</near>
+            <near>0.002</near>
             <far>1.0</far>
           </clip>
 

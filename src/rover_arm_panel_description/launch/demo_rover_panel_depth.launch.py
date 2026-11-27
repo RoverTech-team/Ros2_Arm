@@ -43,7 +43,14 @@ PANEL_FACE_CENTER_Y = PANEL_WIDTH / 2.0
 PANEL_DISTANCE = 0.70        # distanza rover (origine) -> faccia del pannello, provata con RViz/Gazebo
 ROBOT_X = PANEL_FACE_X - PANEL_DISTANCE   # 0.70 con PANEL_DISTANCE=0.60
 ROBOT_Y = PANEL_FACE_CENTER_Y            # 0.165 (centrato davanti al pannello)
-ROBOT_Z = 0.02
+ROBOT_Z = 0.02           # quota di SPAWN: il modello del demo e' costruito con il
+                         # root a livello del pavimento (leve del pannello a
+                         # z=0.22 in base_link, preaim_target_z=0.65). Le ruote
+                         # nel modello stanno 0.27 sotto il root e restano dentro
+                         # il pavimento: nessun effetto, qui il rover non guida.
+                         # Il pavimento pero' lo espelle e senza appoggio si
+                         # rovescia (misurato: roll 52 gradi, camera sul cielo):
+                         # per le validazioni usare PIN_BASE=1.
 
 # Spawn del frame radice panel_base_frame; l'offset reale e' nello Xacro.
 PANEL_X = 0.0
@@ -52,6 +59,38 @@ PANEL_Z = 0.0
 PANEL_YAW = 0.0
 PANEL_QZ = math.sin(PANEL_YAW / 2.0)
 PANEL_QW = math.cos(PANEL_YAW / 2.0)
+
+
+def _pin_base(urdf_path: str, link: str = "base_footprint") -> str:
+    """Converte l'URDF in SDF e ANCORA la base al mondo con un joint fisso.
+
+    Serve alle validazioni cinematiche (viste leve, quote): in questa demo il
+    rover non guida e non ha appoggio, e appena il braccio si estende si
+    rovescia (misurato: roll 52 gradi stabile, camera verso il cielo) oppure
+    viene espulso dal pavimento e oscilla. Con la base ancorata i giunti del
+    braccio restano liberi e controllati: si blocca solo la posa del rover, che
+    nel modello mentale del demo e' comunque fissa.
+
+    Attivo solo con PIN_BASE=1 nell'ambiente: non cambia i run normali.
+    """
+    try:
+        sdf = subprocess.check_output(["gz", "sdf", "-p", urdf_path]).decode("utf-8")
+        anchor = (
+            "\n    <joint name=\"world_pin\" type=\"fixed\">\n"
+            "      <parent>world</parent>\n"
+            f"      <child>{link}</child>\n"
+            "    </joint>\n"
+        )
+        end = sdf.rindex("</model>")
+        sdf = sdf[:end] + anchor + sdf[end:]
+        out = tempfile.NamedTemporaryFile(suffix="_pinned.sdf", delete=False, mode="w")
+        out.write(sdf)
+        out.close()
+        atexit.register(lambda: os.unlink(out.name))
+        return out.name
+    except Exception as exc:  # pragma: no cover - diagnostica
+        print(f"[pin_base] non applicato: {exc}")
+        return urdf_path
 
 
 def _generate_gazebo_urdf() -> str:
@@ -73,6 +112,8 @@ def _generate_gazebo_urdf() -> str:
     f.write(urdf)
     f.close()
     atexit.register(lambda: os.unlink(f.name))
+    if os.environ.get("PIN_BASE", "0") == "1":
+        return _pin_base(f.name)
     return f.name
 
 
@@ -144,6 +185,41 @@ def generate_launch_description():
         DeclareLaunchArgument("keep_visible", default_value="true",
                               description="True: dopo 8 e 5 cm controlla che il main_switch sia visibile dalla camera e, se no, inclina il polso tenendo ferma la punta")
     )
+    declared_arguments.append(
+        DeclareLaunchArgument("open_gripper", default_value="false",
+                              description="True: apre le dita prima della ricerca vista (la camera e' sotto il polso e le dita coprono la leva)")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("gripper_open_pos", default_value="0.04",
+                              description="Apertura slider_joint (m) quando open_gripper:=true; limiti URDF 0..0.06")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("preaim_enabled", default_value="true",
+                              description="True: preorienta j1/j2/j3 verso il pannello prima della ricerca ArUco. "
+                                          "False: lascia la posa iniziale e cerca solo con lo sweep")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("headless", default_value="false",
+                              description="True: nessuna finestra grafica (niente Gazebo GUI, niente RViz, "
+                                          "niente finestra OpenCV del detector). Utile per debug a basso carico")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("detector_gui", default_value="true",
+                              description="True: finestre OpenCV del detector. Su macOS vanno "
+                                          "disattivate (headless:=false detector_gui:=false) se si "
+                                          "vuole la GUI di Gazebo: le finestre cv2 in un thread "
+                                          "rclpy fanno terminare il nodo con NSException")
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument("use_gz_base_tf", default_value="true",
+                              description="True: odom->base_footprint viene dalla posa VERA del modello in "
+                                          "Gazebo (publish_gz_base_tf.py) e world_to_odom non la pubblica. "
+                                          "False: posa nominale di spawn, come prima")
+    )
+    preaim_enabled = LaunchConfiguration("preaim_enabled")
+    headless = LaunchConfiguration("headless")
+    detector_gui = LaunchConfiguration("detector_gui")
+    use_gz_base_tf = LaunchConfiguration("use_gz_base_tf")
     use_nav2 = LaunchConfiguration("use_nav2")
     use_gazebo = LaunchConfiguration("use_gazebo")
     force_panel_facing = LaunchConfiguration("force_panel_facing")
@@ -154,6 +230,8 @@ def generate_launch_description():
     contact_mode = LaunchConfiguration("contact_mode")
     final_standoff = LaunchConfiguration("final_standoff")
     keep_visible = LaunchConfiguration("keep_visible")
+    open_gripper = LaunchConfiguration("open_gripper")
+    gripper_open_pos = LaunchConfiguration("gripper_open_pos")
     contact_depth = LaunchConfiguration("contact_depth")
 
     # ── Panel (shared, unchanged between mock/gazebo) ────────────
@@ -377,7 +455,8 @@ def generate_launch_description():
     gz_gui = ExecuteProcess(
         cmd=["gz", "sim", "-v", "3", "-g", "--render-engine-gui", "ogre2"],
         output="screen",
-        condition=IfCondition(use_gazebo),
+        condition=IfCondition(PythonExpression(
+            ["'", use_gazebo, "' == 'true' and '", headless, "' != 'true'"])),
     )
 
     spawn_robot = ExecuteProcess(
@@ -514,6 +593,13 @@ def generate_launch_description():
             "robot_spawn_x": ROBOT_X,
             "robot_spawn_y": ROBOT_Y,
             "robot_spawn_yaw": 0.0,
+            # Se la posa vera arriva da gz, questa TF non va pubblicata:
+            # due publisher sulla stessa coppia di frame si scartano.
+            "publish_base_tf": ParameterValue(
+                PythonExpression([
+                    "not ('", use_gazebo, "' == 'true' and '",
+                    use_gz_base_tf, "' == 'true')"]),
+                value_type=bool),
         }],
     )
 
@@ -674,6 +760,7 @@ def generate_launch_description():
         output="log",
         arguments=["-d", rviz_config],
         parameters=[moveit_common_params],
+        condition=UnlessCondition(headless),
     )
 
     # Ricerca VISIVA autonoma: nessuna posizione degli ArUco nota in partenza.
@@ -690,7 +777,8 @@ def generate_launch_description():
             {"joint_speed": 1.40},
             # Preorientamento iniziale della camera: coordinate nel frame base_footprint.
             # Dal setup attuale: pannello (1.30, 0.165), rover (0.90, 0.165).
-            {"preaim_enabled": True},
+            {"preaim_enabled": ParameterValue(
+                LaunchConfiguration("preaim_enabled"), value_type=bool)},
             {"preaim_target_x": PANEL_FACE_X - ROBOT_X},
             {"preaim_target_y": PANEL_FACE_CENTER_Y - ROBOT_Y},
             # Quota iniziale da puntare (m in base_footprint):
@@ -722,7 +810,9 @@ def generate_launch_description():
         name="aruco_detector",
         parameters=[
             {"use_sim_time": True},
-            {"enable_gui": True},
+            {"enable_gui": ParameterValue(
+                PythonExpression(["'", headless, "' != 'true' and '",
+                                  detector_gui, "' == 'true'"]), value_type=bool)},
             {"assume_vertical_panel": True},
         ],
         output="both",
@@ -746,7 +836,9 @@ def generate_launch_description():
              "--attempt-contact", attempt_contact, "--camera-lift", camera_lift,
              "--contact-mode", contact_mode,
              "--final-standoff", final_standoff, "--contact-depth", contact_depth,
-             "--keep-visible", keep_visible],
+             "--keep-visible", keep_visible,
+             "--open-gripper", open_gripper,
+             "--gripper-open-pos", gripper_open_pos],
         output="screen",
         condition=IfCondition(use_gazebo),
     )
@@ -771,6 +863,19 @@ def generate_launch_description():
 #         # on_exit=[Shutdown(reason="Demo finished")],
 #     )
 # )
+
+    # Posa VERA della base dal simulatore (gz) -> odom -> base_footprint.
+    # Senza questo TF resta al valore nominale di spawn e ogni proiezione e'
+    # calcolata su un rover che non esiste.
+    gz_base_tf_node = Node(
+        package="rover_arm_panel_description",
+        executable="publish_gz_base_tf.py",
+        name="gz_base_tf",
+        arguments=["--world", "panel_demo", "--model", "my_robot"],
+        condition=IfCondition(PythonExpression([
+            "'", use_gazebo, "' == 'true' and '", use_gz_base_tf, "' == 'true'"])),
+        output="screen",
+    )
 
     panel_static_tf = Node(
         package="tf2_ros",
@@ -835,6 +940,7 @@ def generate_launch_description():
 
         rviz_node,
         panel_static_tf,
+        gz_base_tf_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes)

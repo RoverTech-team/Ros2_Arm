@@ -11,6 +11,8 @@ from rclpy.node import Node
 from rclpy.time import Time
 from rclpy.duration import Duration
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, qos_profile_sensor_data
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 
 from sensor_msgs.msg import Image, CameraInfo
 from std_msgs.msg import Bool, Float32, Float32MultiArray
@@ -19,6 +21,12 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 from cv_bridge import CvBridge
 from tf2_ros import Buffer, TransformListener, TransformException
+
+
+# Oltre questa eta' (secondi di clock di simulazione) un frame RGB e'
+# considerato backlog: scartato prima di ArUco/depth per non misurare
+# su un'immagine di decine di secondi prima.
+MAX_RGB_FRAME_AGE_S = 0.75
 
 
 # ============================================
@@ -215,6 +223,7 @@ class ArucoDetector(Node):
 
         self.marker_found = False
         self.last_log_time = -1.0
+        self.frame_age_logged = False
 
         # Stima finale: parte quando il C++ segnala che il braccio e' fermo
         # nella posa finale (/panel/align_done). Si raccolgono N frame
@@ -243,11 +252,24 @@ class ArucoDetector(Node):
         # SUBSCRIBER
         # ========================================
 
+        # Callback pesanti (immagine + depth) fuori dal gruppo del listener TF.
+        # Gruppi SEPARATI: se condividessero un MutuallyExclusiveCallbackGroup
+        # la depth resterebbe in coda mentre ArUco elabora l'RGB (8 Hz su
+        # 1280x800) e la cache depth invecchierebbe oltre max_rgb_depth_delta_s.
+        self.image_group = MutuallyExclusiveCallbackGroup()
+        self.depth_group = MutuallyExclusiveCallbackGroup()
+
+        # QoS RELIABLE, come il publisher di ros_gz_bridge: creando la
+        # sottoscrizione BEST_EFFORT prima che il bridge esista, il
+        # discovery non la aggancia e il nodo resta muto per sempre.
+        # Il backlog che ne deriva e' gestito dalla guardia MAX_RGB_FRAME_AGE_S
+        # in image_callback (i frame vecchi vengono scartati subito).
         self.image_sub = self.create_subscription(
             Image,
             '/camera/rgbd/image',
             self.image_callback,
-            10
+            10,
+            callback_group=self.image_group,
         )
 
         self.camera_info_sub = self.create_subscription(
@@ -257,10 +279,12 @@ class ArucoDetector(Node):
             10
         )
 
-        # QoS BEST_EFFORT compatibile con i sensori Gazebo/bridge.
+        # Come per l'RGB: RELIABLE per agganciare il publisher del bridge,
+        # che nasce dopo questo nodo. La depth resta leggera da convertire.
         self.depth_sub = self.create_subscription(
             Image, '/camera/rgbd/depth_image',
-            self.depth_callback, qos_profile_sensor_data
+            self.depth_callback, 10,
+            callback_group=self.depth_group,
         )
 
         # Il C++ pubblica con QoS "transient local": stesso QoS qui, cosi'
@@ -1376,6 +1400,20 @@ class ArucoDetector(Node):
                 and self.stamp_ns(msg.header.stamp) <= self.reobserve_started_ns):
             return
 
+        # Guardia anti-backlog: se il frame RGB e' vecchio rispetto al clock
+        # di simulazione, non puo' essere accoppiato a una depth corrente.
+        # Meglio scartarlo subito (la coda BEST_EFFORT consegnera' il prossimo)
+        # che consumare secondi di coda e misurare su immagini di minuti fa.
+        now_ns = self.get_clock().now().nanoseconds
+        frame_age = (now_ns - self.stamp_ns(msg.header.stamp)) * 1e-9
+        if now_ns > 0 and frame_age > MAX_RGB_FRAME_AGE_S:
+            if not self.frame_age_logged:
+                self.frame_age_logged = True
+                self.get_logger().warn(
+                    f'RGB in ritardo di {frame_age:.1f}s sul clock di simulazione: '
+                    'frame scartato (backlog). Le depth restano correnti.')
+            return
+
         frame = self.bridge.imgmsg_to_cv2(
             msg,
             desired_encoding='bgr8'
@@ -1651,9 +1689,14 @@ class ArucoDetector(Node):
                         for label, (_, _, uv) in controls.items():
                             cv2.circle(frame, uv, 4, (0, 255, 0), 2)
                 else:
+                    _diag = {n: dict(c) for n, c in self.depth_roi_status_counts.items()
+                             if n in ('main_switch', 'lever_switch_1')}
+                    _last = {n: self.depth_roi_last.get(n)
+                             for n in ('main_switch', 'lever_switch_1')}
                     self.get_logger().warn(
                         'DEPTH: nessun pulsante misurabile dalla posa attuale '
-                        '(fuori FOV, profondita non valida o mancata sincronizzazione).',
+                        '(fuori FOV, profondita non valida o mancata sincronizzazione). '
+                        f'Diag={_diag} Last={_last}',
                         throttle_duration_sec=5.0)
 
         # Resoconto indipendente dai 15 frame ArUco finali: servono solo
@@ -1672,11 +1715,26 @@ class ArucoDetector(Node):
 
             if now - self.align_done_time > 15.0:
 
-                self.get_logger().warn(
-                    'Stima finale in attesa: nessuna posa valida '
-                    '(marker non visibili o scartati?)',
-                    throttle_duration_sec=5.0
-                )
+                # Se i marker sono usciti dal FOV nella posa finale, non ci
+                # sono campioni: si ripiega sull'ultima posa valida misurata
+                # prima dello stop (la stessa usata dalla misura depth).
+                if self.cached_panel_pose_base is not None:
+                    R_cache, p_cache = self.cached_panel_pose_base
+                    self.final_pose = (R_cache, p_cache)
+                    self.final_done = True
+                    self.final_pose_pub.publish(self.make_pose(
+                        p_cache, R_cache,
+                        self.get_clock().now().to_msg(),
+                        self.base_frame))
+                    self.get_logger().info(
+                        'Stima finale: marker fuori FOV dopo lo stop, '
+                        'pubblico l\'ultima posa pannello valida (pre-stop).')
+                else:
+                    self.get_logger().warn(
+                        'Stima finale in attesa: nessuna posa valida '
+                        '(marker non visibili o scartati?)',
+                        throttle_duration_sec=5.0
+                    )
 
         # Crocette MAGENTA = centro nominale della ROI di misura depth.
         # Solo dopo lo stop e senza alcun effetto sulla detection ArUco.
@@ -1704,13 +1762,22 @@ def main(args=None):
 
     node = ArucoDetector()
 
+    # MultiThreadedExecutor: il listener TF (/tf) deserializza decine di
+    # trasformazioni ad alta frequenza. Con l'executor single-thread lo
+    # faceva NEL thread dei callback immagine, affamando ArUco/depth
+    # (il nodo restava muto per decine di secondi). I callback pesanti
+    # stanno in un gruppo separato, il TF resta nel gruppo di default.
+    executor = MultiThreadedExecutor(num_threads=3)
+    executor.add_node(node)
+
     try:
-        rclpy.spin(node)
+        executor.spin()
 
     except KeyboardInterrupt:
         pass
 
     finally:
+        executor.shutdown()
         node.destroy_node()
         cv2.destroyAllWindows()
 

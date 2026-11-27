@@ -1,3 +1,297 @@
+====================================================================
+DEBUG MAIN SWITCH — STATO (aggiornato 19/11/2026)
+====================================================================
+
+ESITO: RISOLTO. La causa NON era la geometria, ne' le dita, ne' il
+riconoscimento del colore: il nodo ArUco/depth non riceveva proprio i
+frame RGB e depth dalla camera.
+
+--------------------------------------------------------------------
+1. SINTOMO
+--------------------------------------------------------------------
+`DEPTH: nessun pulsante misurabile dalla posa attuale (fuori FOV,
+profondita non valida o mancata sincronizzazione)` ripetuto ogni ~5 s,
+anche con:
+  - i marker ArUco visti e il centraggio convergente (errore 0.5-0.8 px),
+  - solvePnP coerente (leva esattamente dove ci si aspetta),
+  - la leva rossa perfettamente inquadrata.
+
+In piu' il demo C++ faceva 85 passi di "sweep senza marker" e finiva per
+spingere/rovesciare il pannello nella simulazione.
+
+--------------------------------------------------------------------
+2. CAUSA (QoS DDS, non codice di misura)
+--------------------------------------------------------------------
+`test_aruco_depth_search_center.py` viene avviato PRIMA di
+`ros_gz_bridge`. Le sottoscrizioni a:
+    /camera/rgbd/image
+    /camera/rgbd/depth_image
+erano BEST_EFFORT (`qos_profile_sensor_data`), mentre il bridge pubblica
+RELIABLE. In questa combinazione (sottoscrittore creato prima del
+publisher) il discovery non le aggancia mai: il nodo resta muto per
+tutta la sessione.
+
+Conseguenze a catena:
+  - nessun callback immagine  -> /panel/markers_detected mai pubblicato
+    -> il demo C++ non trova i marker e spazza a vuoto;
+  - depth cache sempre vuota  -> depth_for_image() ritorna None
+    -> diagnostica `depth_assente_o_non_sincronizzata`
+    -> "nessun pulsante misurabile".
+
+NOTA: verificato con un probe esterno che i frame arrivano a 29 Hz, con
+stamp RGB e depth identici e 73% di pixel depth validi. Il problema era
+solo l'aggancio DDS del nodo, non i dati.
+
+--------------------------------------------------------------------
+3. FIX APPLICATI
+--------------------------------------------------------------------
+In src/rover_arm_panel_description/scripts/test_aruco_depth_search_center.py:
+  - QoS RELIABLE (depth 10) su RGB e su depth, uguale al publisher del
+    bridge; resta la guardia MAX_RGB_FRAME_AGE_S che scarta i frame in
+    backlog (log: "RGB in ritardo di ... frame scartato (backlog)").
+  - MultiThreadedExecutor + MutuallyExclusiveCallbackGroup dedicato ai
+    callback image/depth, cosi' il listener TF non li affama.
+  - warning depth arricchito con diagnostica per controllo:
+      Diag={'main_switch': {'misurato_rgb_depth': N, 'depth_assente...': M}}
+      Last={'main_switch': {'pixel': (u,v), 'z_observed': Z, ...}}
+    (serve anche in headless, dove non si vede l'overlay OpenCV).
+
+In src/rover_arm_panel_description/launch/demo_rover_panel_depth.launch.py:
+  - argomento `headless` (default "false"): con `headless:=true` non
+    partono gz GUI, RViz e le finestre OpenCV del detector; il server
+    Gazebo renderizza comunque i sensori.
+
+--------------------------------------------------------------------
+4. COMANDI
+--------------------------------------------------------------------
+Headless (consigliato su macchine cariche):
+  source ~/Documents/Polispace/ros2_humble/local_setup.zsh
+  source install/local_setup.zsh
+  export ROS_LOCALHOST_ONLY=1 ROS_DOMAIN_ID=42 GZ_PARTITION=8 GZ_IP=127.0.0.1
+  ros2 launch rover_arm_panel_description demo_rover_panel_depth.launch.py \
+      use_gazebo:=true use_nav2:=false headless:=true
+
+Con GUI (default):
+  ... stessa cosa senza headless:=true (o headless:=false)
+
+Stop:
+  pkill -f demo_rover_panel_depth.launch.py; pkill -f "gz sim"
+
+ATTENZIONE: ogni launch lascia processi se non viene chiuso bene
+(world_to_odom, bridge, RSP...). Prima di rilanciare conviene uccidere
+tutto, altrimenti si accumulano nodi duplicati e il sistema va in load.
+
+--------------------------------------------------------------------
+5. RISULTATO DELLA VERIFICA (headless, 19/11/2026)
+--------------------------------------------------------------------
+Ciclo completo con auto_execute:=false (solo piano):
+  - detector ~8 Hz; marker 0 e 1 trovati; centraggio 15 step;
+  - /panel/align_done pubblicato;
+  - depth misura le leve: main_switch a pixel ~(717, 505), z ~0.46-0.47 m,
+    pubblicato su /panel/controls/main_switch/pose_base;
+  - pre-approach AUTO completato:
+      DISTANZA FINALE PUNTA/TARGET: 0.13 cm
+      DEVIAZIONE MASSIMA PUNTA: 2.2 cm; MIN DISTANZA dalla leva: 7.9 cm
+      ESITO: PIANO VALIDATO; NON ESEGUITO (solo simulazione).
+
+Ciclo completo con auto_execute:=true (movimento reale in Gazebo):
+  - FASE 1 PRE-APPROACH ESEGUITA: errore giunti 0.0002-0.0005 rad,
+    errore punta/target 0.06-0.63 cm, "SUCCESS: il controller Gazebo ha
+    eseguito il piano e la punta e' vicina al target";
+  - FASE 2 (ri-osservazione RGB-D a braccio fermo): FALLITA.
+    VIEW SEARCH ha provato 2 configurazioni IK su 4 valide:
+      "Rosso della leva non riconoscibile nella nuova RGB"
+      "nessuna delle configurazioni provate ha prodotto una misura RGB-D
+       valida. STOP: nessuna fase 2."
+    Il processo main_switch_pre_approach_AUTO.py esce con code 2.
+  - Immagini di debug salvate dallo script: /tmp/lever_view_00.png,
+    /tmp/lever_view_01.png (copie anche in
+    /private/var/folders/2r/.../opencode/lever_view_0*.png).
+    Cosa mostrano: il mirino verde (main_switch previsto) cade sulle DITA
+    del gripper, a z=0.24-0.25 m, mentre il pannello e' a ~0.46 m.
+    Le leve rosse sono visibili ma in basso a sinistra, fuori dalla ROI
+    prevista. Non e' un problema di soglia colore: e' la vista OCCLUSA
+    dalle dita nella posa finale (confermata la nota originale "la vista
+    e' coperta dalle dita").
+
+Miglioramenti gia' applicati in questa sessione:
+  - RGB e depth su gruppi di callback SEPARATI: la depth non resta piu'
+    in coda dietro ArUco (8 Hz su 1280x800). Frames scartati per
+    desync: da ~63% a ~30% (12/40 per controllo), warning a dt=0.132 s
+    (limite 0.12 s).
+  - Stima finale: se i marker sono fuori FOV dopo lo stop, si pubblica
+    l'ultima posa pannello valida pre-stop (niente piu' "Stima finale in
+    attesa").
+
+--------------------------------------------------------------------
+6. VIEW SEARCH: ROLL + DITA APERTE (19/11/2026)
+--------------------------------------------------------------------
+Implementato in main_switch_pre_approach_AUTO.py:
+  - ROLL_GRID_RAD = (0.6, -0.6, 1.2, -1.2): dopo le candidate di pitch,
+    si ruota ee_base_joint_y con IK a roll FISSO (free=[0,1,2,3]) sulle
+    migliori 3 candidate. Con roll=-1.2 la leva risulta libera dal dito
+    (+78 px) gia' con le dita chiuse.
+  - FK di verifica reale (fingertip_fk) su ogni candidata roll, perche'
+    il residuo interno del solver non bastava.
+  - `--open-gripper true`: apre slider_joint a 0.04 m prima della
+    ricerca. ATTENZIONE: la punta e' un offset nel frame del dito, quindi
+    aprendo le dita la punta FK si sposta (~1.26 rad, ~14 cm) e la
+    geometria di spinta cambia; serve rileggere lo stato DOPO l'apertura
+    (fatto) e con 0.04 m TUTTE le candidate falliscono il target.
+    Per ora conviene lasciarlo a false: il roll da solo basta a 8 cm.
+  - Soglia del rosso in measure_one: distanza massima centroide-pixel
+    previsto da 32 a 80 px (a 8 cm la leva occupa ~60x45 px e il
+    centroide sta a ~55 px dal pixel previsto).
+
+ESITO con `auto_execute:=true` (dita chiuse, roll):
+  - FASE 1 (8 cm): PIANIFICATA ED ESEGUITA, errore punta 0.02 cm,
+    "VIEW SEARCH SUCCESS: leva verificata da 4 RGB-D nuove,
+    configurazione 1: (-1.661, -0.571, -1.188, +1.168, -1.205)",
+    nuova misura leva: centro=(+0.677,-0.115,+0.154), scatter 0.1 mm.
+  - FASE 2 (5 -> 8 cm): ESEGUITA, errore punta 0.61 cm,
+    main_switch invariato (-1.570 -> -1.570 rad).
+  - GUARDIA VISIVA dopo la fase 2: FALLITA a 5 cm:
+      "VISION GUARD: main_switch NON visibile dopo il movimento
+       Rosso della leva non riconoscibile nella nuova RGB"
+    Immagine: /tmp/lever_view_00.png (copia
+    /private/var/.../opencode/lever_phase2.png). A 5 cm la leva e'
+    un'asticella rossa sottile al bordo di una superficie grigia
+    (pannello visto di sbieco): il rosso utile e' molto ridotto.
+    NB: la stessa immagine, rianalizzata offline, contiene 2 componenti
+    rosse valide (852 px a ~52 px dal mirino e 549 px a ~15 px), quindi
+    il fallimento dipende dal frame effettivamente usato dalla guardia
+    (probabilmente occlusione/grazing diversa in quel frame), non dalla
+    soglia globale.
+
+--------------------------------------------------------------------
+7. COSA RESTA DA FARE
+--------------------------------------------------------------------
+  a) [FATTO] Sincronizzazione RGB/depth: gruppi callback separati +
+     guardia backlog. Restano ~30% di frame scartati con dt=0.132 s:
+     alzare `max_rgb_depth_delta_s` a ~0.15 se serve.
+  b) [FATTO] Stima finale con marker fuori FOV: fallback sulla posa
+     valida in cache prima dello stop.
+  c) [FATTO] Occlusione a 8 cm: roll del polso. La fase 1 e' validata
+     dalla RGB-D reale.
+  d) [PROSSIMO] Guardia visiva a 5 cm. La leva e' al limite del pannello
+     e il rosso e' una striscia sottile; opzioni:
+       - usare la depth (e non il rosso) per confermare la leva a 5 cm;
+       - allargare/ruotare la finestra di ricerca (ROI) o accettare
+         componenti piu' piccole (area>=12 ma h>=4 e' gia' permissivo);
+       - salvare PIU' frame di debug (oggi solo il primo per observe())
+         per capire se il fallimento e' su un frame sfortunato;
+       - aumentare final_standoff da 0.05 a 0.06-0.075 (la visione a
+         5 cm e' al limite del grazing).
+  e) Controlli NON-leva (rotary/power switch): tutti finiscono in
+     `depth_differente_dalla_previsione` (z_prevista ~0.40 m vs depth
+     grezza ~0.46-0.47 m, tolleranza 0.025 m). Le leve funzionano
+     perche' usano la via RGB-rosso. Da verificare il piano nominale di
+     `control_points` per quei controlli.
+  f) Idea "solo depth" dalle note originali: utile per (d), NON per
+     l'occlusione meccanica (li' serve il roll).
+
+--------------------------------------------------------------------
+8. APERTURA DITA: TUNING (20/11/2026)
+--------------------------------------------------------------------
+Nuovo script headless (installato come eseguibile del pacchetto):
+
+  ros2 run rover_arm_panel_description tune_gripper_opening.py \
+      [--lever-center X Y Z] [--target X Y Z] [--arrival-joints Q1..Q5]
+
+Cosa fa: per ogni apertura di slider_joint (0, 5, 10, 15, 20, 25, 30, 40 mm)
+usa FK + calibrazione camera per calcolare, nella posa di arrivo a 8 cm:
+  - occ    = distanza in px tra leva e bordo delle dita proiettate
+             (negativo = dito davanti alla leva)
+  - Tip    = spostamento della punta FK rispetto alle dita chiuse (cm)
+             dovuto alla rotazione del dito sul giunto
+Stampa la tabella e consiglia l'apertura piu' piccola con occ >= 8 px e
+Tip <= 3 cm. Senza --arrival-joints risolve la IK dalla stato attuale
+(serve la demo allineata); con --arrival-joints valuta una posa nota.
+
+Risultato misurato (posa di arrivo roll=-1.205, leva a 8 cm):
+  apertura |  occ px | Tip cm
+     0.000 |    -7.8 |   0.0     (dito ancora davanti)
+     0.005 |   +67.5 |   2.2
+     0.010 |  +149.0 |   4.4
+     0.015 |  +238.9 |   6.6
+     0.020 |  +341.2 |   8.7
+     0.030 |  +370.3 |  12.8
+     0.040 |  +345.1 |  16.5     (l'apertura grande sposta troppo la punta)
+=> CONSIGLIATA 0.005 m (5 mm): libera la leva con la minima rotazione del
+   dito. L'apertura 0.04 m usata nel primo test era troppo grande: con
+   quella TUTTE le candidate fallivano il target (errore punta 16.5 cm).
+
+Immagini di debug (vista PREDETTA da FK, non render Gazebo): con
+`--images` lo script salva le 3 aperture piu' piccole che liberano la leva:
+  /tmp/tune_open_005mm.png  occ=+67 px  tip=2.2 cm   (consigliata)
+  /tmp/tune_open_010mm.png  occ=+149 px tip=4.4 cm
+  /tmp/tune_open_015mm.png  occ=+238 px tip=6.6 cm
+Disegno: leva = barra rossa + mirino verde, dita = capsule gialle proiettate
+(raggio FINGER_RADIUS_M) solo se piu' vicine della leva.
+
+Nuovi parametri:
+  main_switch_pre_approach_AUTO.py: --gripper-open-pos <m> (0..0.06)
+  launch: open_gripper:=true gripper_open_pos:=0.005
+  tune_gripper_opening.py: --images [--out-dir DIR]
+
+--------------------------------------------------------------------
+9. FOV NON RENDERIZZATO: NEAR CLIP (20/11/2026)
+--------------------------------------------------------------------
+Sintomo: porzioni rettangolari della FOV RGB "vuote"/non renderizzate,
+soprattutto a 5-8 cm dal pannello (dita e bordo pannello).
+Causa: nel sensore Gazebo il clip di rendering era <near>0.05</near>:
+tutto cio' che stava entro 5 cm dalla camera veniva TAGLIATO, lasciando
+buchi (si vedeva lo sfondo). Non era un problema del bridge ne' del
+detector.
+Fix in rover_arm_description/urdf/camera_arm.urdf.xacro:
+  camera principale:     <near> 0.05 -> 0.01 </near>
+  depth_camera:          <near> 0.05 -> 0.01 </near>
+La distanza minima REALE della Gemini (0.05 m) resta applicata dal
+filtro software del detector (z >= 0.05), non dal clip di rendering.
+
+Verifica: immagini RGB reali catturate con
+  ros2 run rover_arm_panel_description capture_gripper_openings.py       --goto-arrival -1.661 -0.571 -1.188 1.168 -1.205       --openings 0 0.005 0.010 0.015 --settle 2.0       --lever-center 0.677 -0.115 0.154
+Lo script legge /camera/rgbd/image direttamente da gz.transport (bypassa
+ros_gz_bridge, che su questa macchina non consegna l'RGB) e disegna il
+mirino previsto + l'apertura usata. Dopo il fix i blocchi non
+renderizzati sono spariti; restano solo le due cavita' scure tra dito e
+polso (geometria reale in ombra, presenti anche prima).
+
+--------------------------------------------------------------------
+10. SUPPORTO CAMERA 10 cm (20/11/2026)
+--------------------------------------------------------------------
+Problema: la camera era fissata direttamente a ee_base (centro del polso,
+tra le dita) e a 5-8 cm le dita occupavano buona parte del FOV.
+Modifica in rover_arm_description/urdf/camera_arm.urdf.xacro:
+  - nuovo link camera_support_link (box 0.10 x 0.016 x 0.016 m, massa 0.05 kg),
+    fissato a ee_base in (0.03, 0.09, 0) ed ESTESO LUNGO X: X e'
+    perpendicolare al piano di apertura delle dita (apertura lungo Z,
+    dita estese lungo Y).
+  - gemini_camera_link ora e' figlio di camera_support_link, con origine
+    (0.10, 0, 0) rpy (0,0,pi): camera spostata di 10 cm lateralmente.
+  - il supporto e' SOLO VISUAL (nessuna collision): non deve introdurre un
+    ingombro che blocchi la pianificazione a 5-8 cm dal pannello. Su
+    hardware reale va progettato e aggiunto anche come collision.
+
+Verifica con capture_gripper_openings.py (frame reali da gz.transport):
+  /private/var/.../opencode/grip_open_000mm.png  e  grip_open_010mm.png
+Le dita NON sono piu' nel FOV e la leva e' visibile col mirino previsto
+(z=0.28 m) sia a 0 sia a 10 mm di apertura: l'occlusione meccanica e'
+risolta alla radice. La calibrazione del demo (TF ee_base->ottica) si
+aggiorna da sola, non serve toccare i parametri del vision guard.
+
+NOTA AMBIENTE (20/11): in questa sessione il bridge RGB non consegna
+/camera/rgbd/image su ROS (gz pubblica, depth e camera_info arrivano,
+immagine no) e compaiono errori DDS verso un peer esterno
+(100.125.187.81) nonostante ROS_LOCALHOST_ONLY. Il test end-to-end con
+apertura 0.005 e' quindi rimandato: serve prima un DDS sano (es.
+CYCLONEDDS_URI con NetworkInterfaceAddress=lo0, o spegnere VPN/Tailscale).
+Il tuning geometrico qui sopra non dipende dalla camera e resta valido.
+
+====================================================================
+NOTE ORIGINALI (precedenti al debug, mantenute per storico)
+====================================================================
+
 Per vedere dove la camera si aspetta di vedere la leva da solvepnp, runnare questo
 
 rm -f /tmp/lever_view_*.png
@@ -61,5 +355,585 @@ il mirino punta giusto ma la vista è coperta dalle dita. PEnsavo che il problem
  quindi prossimo step è capire come mai depth non riconosce la leva nonostante sia visibile e  nonostante sia esattamente dove ci si aspetta con solve PNP...
  
  i problemi potrebbero essere o legati al codice che magari vede il pulsante ma non lo restituisce nei log (sarebbe da esplicitare meglio un mirino se viene visto il pulsante, lho famtto ma di fretta e non ho avuto modo di rivederlo). 
- Altrimenti il problema potrebbe essere che prima, per stimare la presenza dei pulsanti, usavamo rgb+deph. RGB però a breve distanza fa schifo: sarebbe da vedere questo e semmai togliere rgb e dire alla camera di fare solo con depth, perche se chiaramente le dici "cerca la zona rossa qua attorno" ma la zona rossa non la vede, non potra neanche partire con depth. 
- 
+ Altrimenti il problema potrebbe essere che prima, per stimare la presenza dei pulsanti, usavamo rgb+deph. RGB però a breve distanza fa schifo: sarebbe da vedere questo e semmai togliere rgb e dire alla camera di fare solo con depth, perche se chiaramente le dici "cerca la zona rossa qua attorno" ma la zona rossa non la vede, non potra neanche partire con depth.
+=== 2026-11-21 - ESITO: depth RICONOSCE il main_switch ===
+
+DOMANDA ORIGINALE ("depth non lo riconosce") -> RISOLTA.
+
+Misura reale, run headless completo con il supporto camera da 10 cm:
+  main_switch    base=(+0.677, -0.114, +0.175)  panel=(+0.051, +0.024, +0.212)  N=6 scatter=0.7mm
+  lever_switch_1 base=(+0.677, -0.056, +0.176)  panel=(+0.109, +0.024, +0.213)  N=6 scatter=0.6mm
+  lever_switch_2 base=(+0.677, +0.000, +0.177)  panel=(+0.165, +0.023, +0.214)  N=6 scatter=0.5mm
+  lever_switch_3 base=(+0.677, +0.058, +0.175)  panel=(+0.223, +0.023, +0.212)  N=6 scatter=0.6mm
+  lever_switch_4 base=(+0.678, +0.114, +0.174)  panel=(+0.279, +0.022, +0.211)  N=6 scatter=0.6mm
+Le 4 leve + main_switch sono misurate dalla depth con dispersione < 1 mm.
+
+Nota residua: le 7 ROI dei selettori originali (rotary/power) restano
+"depth_assente_o_non_sincronizzata" (34 tentativi falliti, 6 riusciti):
+il pairing RGB/depth e ancora fragile (~15%), ma con >= 3 campioni buoni
+la misura e valida. Se serve, alzare max_rgb_depth_delta_s o mettere in
+coda solo le coppie sincronizzate.
+
+CAUSA VERA DEI "NODI MUTI" (non era il codice della demo):
+1) Dopo il riavvio macOS en0 non ha piu IPv4: CycloneDDS sceglie
+   l'interfaccia sbagliata e la discovery TRA PROCESSI si rompe.
+   Sintomi: detector che non pubblica nulla, gz_ros_control fermo su
+   "Waiting for data on 'robot_description'", ros2 CLI che si pianta.
+   FIX: fissare l'interfaccia a lo0 con CYCLONEDDS_URI:
+     <CycloneDDS><Domain id="any"><General>
+       <Interfaces><NetworkInterface name="lo0"/></Interfaces>
+       <AllowMulticast>spdp</AllowMulticast>
+     </General></Domain></CycloneDDS>
+   poi `export CYCLONEDDS_URI=file://.../cyc_lo.xml`.
+   ROS_LOCALHOST_ONLY=1 da solo NON basta piu (deprecato in Jazzy).
+   Verifica rapida: due processi python che si scambiano una String;
+   se in domain nuovo il subscriber resta vuoto, la discovery e rotta.
+2) Processi orfani: il pkill della launch non uccide i figli. Trovati
+   8 world_to_odom + RSP/spawner/bridge residui che pubblicavano /tf a
+   320+ Hz e saturavano i thread dell'executor del detector (sample:
+   tutto il tempo in tf2_msgs__msg__tf_message__convert_to_py).
+   FIX: terminare per pattern completo (Ros2_A[m]m/install,
+   ros2_humbl[e]/lib, gz si[m]) e controllare "0 residui" prima del run.
+
+RIMANE (non e depth): con il supporto camera da 10 cm il VIEW SEARCH non
+trova nessuna posa utile a 8 cm dal pannello:
+  VISION GUARD: offset camera/ee_base = (+0.130, +0.098, 0.000)
+  pitch=-1.01 -> margine FOV -115 px
+  pitch=-0.91 -> margine FOV  -85 px
+  pitch=-0.71 -> margine FOV  -41 px
+  pitch=-0.51 -> margine FOV   +8 px, ma dito a -54 px (occlusione)
+La leva esce dal FOV (pixel previsto (403, -100)); la Fase 1 viene eseguita
+(errore punta 0.11 cm, arrivo 0.88 cm) ma la validazione RGB-D della Fase 2
+non parte. Non esiste, con questo offset, una posa che veda la leva senza
+il dito davanti: serve rivedere il montaggio (offset laterale/verticale o
+angolazione della camera).
+
+=== 2026-11-21 - OTTIMIZZATORE HEADLESS: scansiona anche il supporto camera ===
+
+tune_gripper_opening.py ora accetta:
+  --stand-axis {x,y,z}  asse di ee_base lungo cui spostare il mount (default z)
+  --stand-values M ...  valori ASSOLUTI (m) dell'offset camera su quell'asse
+  --fov-margin PX       margine minimo dal bordo (default: regola del demo, 96 px)
+Per ogni valore stampa apertura/occ/margine/Tip, dice QUALE vincolo manca
+(FOV, occlusione, Tip) e chiude con riepilogo + riga camera_mount_joint da
+mettere in camera_arm.urdf.xacro. Senza --stand-values il comportamento e
+identico a prima.
+
+Misure sul montaggio attuale (arrivo a 8 cm, leva (0.677,-0.114,0.175),
+offset calibrato x=+0.130 y=+0.098 z=0.000):
+  z=+0.120 .. -0.060 -> margine sempre -118 px: l'asse verticale NON cambia
+      il margine (il vincolo e orizzontale), quindi l'altezza del supporto
+      da sola non risolve.
+  y=+0.098 -> margine -119 px
+  y=+0.000 -> margine  +38 px, occ max +49.9 px
+  y=-0.020 -> margine  +59 px, occ max +23.6 px
+  y=-0.040 -> margine  +78 px, occ max  +6.6 px
+  y=-0.060 -> margine  +94 px, occ max  -3.7 px
+  y=-0.080 -> margine +109 px, occ negativo
+Compromesso: avvicinando la camera all'asse (y -> 0) si guadagna FOV ma il
+dito copre la leva; spostandola di lato (y -> -0.06) si guadagna margine ma
+il dito torna davanti. Nessun valore di un solo asse soddisfa margine >= 96 px
+e occ >= 8 px: serve un offset composto (y tra -0.04 e -0.06 con x maggiore,
+oppure camera inclinata), da cercare con --stand-axis y e poi x.
+
+=== 2026-11-21 - OTTIMIZZATORE CMA-ES DEL MONTAGGIO (6 DOF) ===
+
+Nuovo: scripts/optimize_camera_mount.py (dipendenza: pip install cmaes).
+- Parametri: 6 DOF normalizzati in [-1,1] -> traslazione (x,y,z) e rotazione
+  (roll,pitch,yaw) della camera ottica rispetto a ee_base; limiti +-0.15 m e
+  +-35 deg. Il supporto puo' quindi essere montato anche INCLINATO.
+- Scene: per ogni leva e standoff costruisce l'arrivo con la stessa IK del
+  demo e fa FK UNA volta sola (le pose non dipendono dal mount), quindi il
+  costo e' puro numpy e CMA-ES fa centinaia di valutazioni in 0.2 s.
+- Costo robusto: penalty hinge normalizzate su margine FOV e occlusione dita,
+  profondita' fuori range = penalita' piena, aggregazione media + caso
+  peggiore (una leva nascosta non viene compensata dalle altre),
+  regolarizzazione debole sullo spostamento; margine/occ limitati a +-1000 px
+  per evitare gradienti enormi quando la leva e' dietro la camera.
+- Scene degenerate (camera a ridosso delle dita) penalizzate una volta sola.
+
+Risultato con le 5 leve misurate (margine richiesto 96 px, occ >= 8 px):
+  standoff 8/6 cm   -> 10/10 OK, margine 209-250 px, occ 39-101 px
+                       dt=(-7.4, -4.2, +3.3) cm, drpy=(-1.2, +5.8, +8.3) deg
+  standoff 8/6/5 cm -> 15/15 OK, margine 98-155 px, occ 8-96 px
+                       dt=(-4.6, -1.3, +3.1) cm, drpy=(+2.8, +1.6, +2.3) deg
+Il secondo copre anche i 5 cm della fase 2 ed e' quello consigliato. Seed
+diversi danno montaggi diversi ma equivalenti (regione fattibile piatta):
+il costo non ha un ottimo unico, ha un insieme di soluzioni valide.
+Applicare dt a camera_mount_joint.xyz (assi ee_base) e drpy a
+camera_rover_mount_joint.rpy, poi verificare con tune_gripper_opening.py.
+
+=== 2026-11-21 - MONTAGGIO CMA-ES APPLICATO AL URDF: validazione PARZIALE ===
+
+Applicato in camera_arm.urdf.xacro (camera_support_joint):
+  xyz = -0.0153 0.0721 0.0333    rpy = 0.04887 0.02793 0.04014
+Verifica in simulazione: VISION GUARD offset=(+0.084, +0.084, +0.031),
+identico al target dell'ottimizzatore. Il montaggio e' applicato davvero.
+
+Predizione a 8 cm (tune_gripper_opening, posa IK del demo):
+  margine 76 px (prima era -118), occ +18 px, z_cam 0.25 m
+-> la leva entra nel FOV, ma resta sotto la soglia del demo (96 px).
+
+Immagini reali per le 5 leve (capture_gripper_openings --lever-frames):
+  le pose IK del demo NON inquadrano bene la leva: resta fuori FOV o al bordo.
+Due cause distinte:
+ 1) l'ottimizzatore aveva costruito le scene partendo da una posa diversa
+    (il braccio non era in pre-aim j2=-0.8), quindi le pose di arrivo usate
+    nel costo non sono quelle che il demo produce davvero;
+ 2) il mirino proiettato via TF non coincide con il render Gazebo: la leva
+    vera sta in basso a destra dove il mirino finisce in alto a sinistra
+    (differenza compatibile con una rotazione di ~180 gradi della terna
+    ottica). Il difetto esisteva anche PRIMA del cambio di montaggio e rende
+    inaffidabili tutti i controlli basati sulla proiezione (view search,
+    mirini, tune_gripper_opening).
+
+Prossimi passi:
+  a) rifare l'ottimizzazione con le pose di arrivo reali del demo (pre-aim
+     j2=-0.8) per le 5 leve, poi riapplicare il montaggio;
+  b) sistemare la terna ottica tra URDF e SDF (rotazione 180 gradi) e
+     riverificare con un mirino su una leva nota;
+  c) solo dopo rilanciare la demo completa e riabilitare il checkbox del PR.
+
+=== 2026-11-21 - VERIFICA: il rover parte DAVANTI al pannello ===
+
+Layout di spawn NON modificato (demo_rover_panel_depth.launch.py):
+  PANEL_FACE_X = 1.30, PANEL_DISTANCE = 0.70 -> ROBOT_X = 0.60
+  ROBOT_Y = PANEL_FACE_CENTER_Y = 0.165  (centrato sulla larghezza)
+TF in simulazione: panel_base in base_link = (+0.700, -0.165, 0.000)
+=> il rover e' 0.70 m davanti alla faccia e centrato, come da progetto.
+
+Posa di partenza reale (pre-aim del C++): j1 = -1.400 (yaw cinematico),
+j2 = -0.500 (preaim_shoulder_angle -0.8 viene CLAMPATO da max_arm_bend 0.5),
+j3 = +0.120. Con il nuovo montaggio, a questa posa:
+  - il pannello e' inquadrato (bordo superiore a meta' altezza, leve in
+    basso, nessun dito nel FOV);
+  - il detector registra "Entrambi gli ArUco trovati: STOP SCANSIONE" 8 s
+    dopo la mossa di pre-aim.
+Immagine: msdbg/pm_a/grip_open_000mm.png
+
+NOTA: le catture precedenti in cui si vedeva solo cielo usavano j1=-1.505,
+cioe' lo yaw di un run precedente (lo yaw cinematico cambia di ~6 gradi con
+la posa reale del rover). Era un errore del mio script di cattura, non un
+cambio di geometria.
+
+=== 2026-11-21 - CMA-ES DALLA POSA DI PARTENZA VERA + 5 RENDER REALI ===
+
+Ottimizzazione rifatta con il braccio in pre-aim reale (-1.400, -0.500,
+0.120) e le posizioni leve lette live da TF (0.680, +-0.115, 0.220):
+  standoff 8/6/5 cm, 15 scene -> TUTTE valide nel modello
+  (margine 100-160 px, occ 8-97 px)
+  delta rispetto al montaggio GIA' applicato: dt=(-8, +2, +5) mm,
+  drpy=(-0.1, +0.2, 0.0) deg
+=> il montaggio attuale e' gia' praticamente l'ottimo per queste pose:
+   non serve ritoccare l'URDF (8 mm sono sotto il rumore del modello).
+
+Render reali a 8 cm con IK dal pre-aim (immagini in msdbg/lever_*.png):
+  lever_switch_2 : BUONA  (fila leve intera, dita sopra)
+  lever_switch_3 : BUONA
+  lever_switch_4 : MARGINALE (leve al bordo alto del pannello)
+  lever_switch_1 : SCARSA  (si vede solo l'angolo del pannello in basso)
+  main_switch    : SCARSA  (idem)
+Le due scarse sono le leve con y<0: l'IK del demo sceglie un ramo di polso
+diverso che punta la camera ~30 gradi in alto. Non e' il montaggio (stessa
+distanza, stessa quota, stesso mount): e' la POSA DI ARRIVO.
+Il demo ha gia' il VIEW SEARCH per il main_switch (pitch del polso): va
+esteso alle 4 leve, altrimenti il main_switch resta il caso peggiore.
+
+=== 2026-11-21 - META' FRAME GRIGIA: non e' un bug di rendering ===
+
+Analisi dei frame salvati (docs/media/lever_views/*.png):
+  colore dominante #A0A0A0 (grigio neutro) sul 45% del frame;
+  #9595AA (7.7%) = background del mondo; #646464/#474747 = facce in ombra.
+  Colonne con colore unico: 0 su 1280  -> nessuna "striscia" non renderizzata.
+Il mondo panel_interaction.world ha <background>0.3 0.3 0.4</background>,
+<ambient>0.4 0.4 0.4</ambient>, un piano terra 10x10 grigio e nessuna
+texture/skybox: il grigio e' il pavimento/le facce del pannello illuminati
+in modo piatto. Compare quando la camera guarda OLTRE il pannello, cioe'
+quando la leva sta al bordo del FOV (margine 90 px, vedi sotto).
+Il bordo seghettato nella zona grigia e' la shadow map a bassa risoluzione.
+
+Apertura dita (tune_gripper_opening, leva 0.680 -0.115 0.220,
+posa di arrivo del demo (-1.770, -0.904, -0.383, +0.352, 0.000)):
+  0 mm   occ +10.7 px  margine 90  Tip 0.0 cm
+  5 mm   occ +63.1 px  margine 90  Tip 2.2 cm
+  10 mm  occ +136.4 px margine 90  Tip 4.4 cm
+  25 mm  occ +345.7 px margine 90  Tip 10.7 cm
+Con le dita CHIUSE la leva e' gia' libera (+10.7 px > soglia 8), quindi
+--open-gripper non serve; il margine resta 90 px, 6 px sotto la regola del
+demo (96 px): e' quello che fa rifiutare la posa al view search.
+
+=== 2026-11-21 - BUG del calcolo di occlusione (fix) ===
+
+Il modello trattava ogni dito come un CILINDRO di raggio 2.2 cm lungo la
+linea TCP_LOCAL, ignorando lo spessore della piastra e tutta la mano:
+diceva "leva libera a +10.7 px" anche quando il render mostrava la leva
+DIETRO il dito (esempio: apertura 0 mm).
+Fix: il dito e' una LASTRA 4.2 x 14 x 2.2 cm (box della collisione,
+camera_arm.urdf.xacro) con centro (0.016, 0.070, -0.011) nel frame del link.
+Ora si proiettano gli 8 vertici, si prende l'inviluppo convesso e si misura
+la distanza della leva dal poligono (negativa = coperta), contando solo i
+dita piu' vicine della leva. Applicato sia in
+main_switch_pre_approach_AUTO.projected_lever sia in
+optimize_camera_mount.ViewCost.
+
+Numeri corretti a 8 cm (leva 0.680 -0.115 0.220, arrivo del demo):
+  0 mm  occ +6.4 px   -> SOTTO la soglia 8: la leva e' coperta (come nel render)
+  5 mm  occ +75.3 px  Tip 2.2 cm  -> apertura consigliata
+  10 mm occ +145.8 px Tip 4.4 cm
+  25 mm occ +373.7 px Tip 10.7 cm  -> leva completamente visibile
+Margine FOV resta 90 px (< 96): e' la POSA, non l'apertura. Il tool ora
+stampa i due verdetti separati.
+
+CMA-ES rifatto col costo corretto (8/6/5 cm, 15 scene): servono
+dt=(-5.4, +1.7, +1.0) cm e drpy=(+2.9, +4.5, -2.5) deg rispetto al mount
+attuale -> tutte le scene OK, margine 170-245 px, occ 15-115 px.
+(Non applicato all'URDF: da fare al prossimo giro con nuovo render.)
+
+=== 2026-11-21 (sera) - STATO DEL RAMO E REPLICA DEL FRAME 25 mm ===
+
+Stato trovato (git):
+  branch feature/jazzy-panel-vision, 4 commit non pushati, WIP non committato:
+  - demo_rover_panel_depth.launch.py: REVERT di _force_static (modello di nuovo
+    dinamico), ROBOT_Z 0.02 -> 0.12, nuovo nodo gz_base_tf (staged+unstaged);
+  - publish_gz_base_tf.py e config/cyclonedds_lo0.xml nuovi (untracked);
+  - capture_gripper_openings.py: aggiunti --gripper-open e --seed-joints.
+
+Quattro difetti misurati in quel WIP (tutti verificati a video):
+
+1) --gripper-open era DICHIARATO E MAI USATO. Le viste leva giravano con
+   l'apertura lasciata dal demo: la validazione a 25 mm (frame di riferimento
+   docs/media/gripper_openings/grip_open_025mm.png) non era riproducibile.
+   FIX: l'apertura viene comandata prima del ciclo e STAMPATA sull'immagine,
+   cosi' i due controlli di visibilita' sono confrontabili.
+
+2) DUE publisher su odom->base_footprint: world_to_odom (wall time, posa di
+   spawn) e gz_base_tf (sim time, posa vera). tf2 scartava il secondo:
+   TF_OLD_DATA a raffica, frame odom MAI nell'albero, e lever_from_tf() senza
+   base_link->odom. FIX: argomento use_gz_base_tf (default true) ->
+   world_to_odom riceve publish_base_tf:=false e gz_base_tf timbra con
+   l'orologio di SISTEMA (il resto dell'albero e' wall time per via di
+   joint_states_restamper). Verificato: 0 TF_OLD_DATA, un solo restamper.
+
+3) POSA DEL SENSORE (commit 68a4375) SBAGLIATA: rpy (1.570796 -1.570796 0)
+   orienta il render lungo +Z_link. Misurato: camera verso il cielo, pannello
+   fuori FOV, detector senza ArUco (sweep 85 passi a vuoto, j1 lasciato a
+   15.6 rad) e frame tutto cielo. La posa originale (-1.570796 0 -1.570796)
+   e' coerente con camera_optical_joint: x_s=-Y_link, y_s=-Z_link, z_s=+X_link
+   = assi ottici. Il disallineamento mirino/leva del 21/11 NON era la terna
+   ottica: era il TF della base nominale (punto 2). Ripristinata.
+
+4) IL ROVER NON HA APPOGGIO. Senza _force_static il modello viene espulso dal
+   pavimento e si rovescia: misura su /world/panel_demo/pose/info, 3 campioni:
+   z 0.257 -> 0.263, quaternion x -0.206 -> -0.215 (roll 24 -> 25 gradi) e poi
+   stabile a 52 gradi con la camera sul cielo. Le quote del pannello lette da
+   TF erano (-0.600, +0.199, -0.332): geometria di un rover che non esiste.
+   FIX per le validazioni: PIN_BASE=1 ancora la base al mondo con un joint
+   fisso inserito nell'SDF (i giunti del braccio restano liberi e controllati).
+   Modello pinnato: posa identica su tutti i campioni, (0.6, 0.165, 0.25).
+
+Quote leve: NON sono (0.680 +-0.115 0.220) in base_link. Lette da
+/world/panel_demo/pose/info con base a z=0.25:
+  main_switch_knob    (0.680, -0.115, -0.030)
+  lever_switch_1_knob (0.680, -0.057, -0.030)
+  lever_switch_2_knob (0.680,  0.000, -0.030)
+  lever_switch_3_knob (0.680, +0.058, -0.030)
+  lever_switch_4_knob (0.680, +0.115, -0.030)
+Con la z=0.220 il mirino finisce 0.3 m sopra la leva: e' l'errore che sembrava
+"terna ottica ribaltata". Da qui in poi le quote vanno prese da gz/TF.
+
+REPLICA DEL FRAME (stessa forma dell'immagine di riferimento: mirino verde
+sulla leva, "nel FOV", "opening=25 mm"):
+  PIN_BASE=1 ros2 launch rover_arm_panel_description \
+      demo_rover_panel_depth.launch.py use_gazebo:=true use_nav2:=false \
+      headless:=true auto_execute:=false
+  # stop del demo C++ e dell'AUTO, poi:
+  ros2 run rover_arm_panel_description capture_gripper_openings.py \
+      --goto-arrival -1.644 -1.503 -0.274 0.84 0.000 \
+      --openings 0.025 --out-dir docs/media/lever_views_20261121 \
+      --lever-center 0.680 -0.115 -0.030
+  -> docs/media/lever_views_20261121/replica_main_switch_25mm_8cm.png
+     leva u=520 v=169 z=0.21 m, nel FOV, dita fuori dalla leva.
+
+Viste a 8 cm con l'IK del demo (--levers ... --gripper-open 0.025):
+  arrivo IK (-1.644 -1.503 -0.274 +0.641): leva FUORI FOV (u=-167 v=22,
+  z=0.19 m); lever_switch_2 uguale (u=-121 v=2). Le pose IK del demo puntano
+  la camera ~10 gradi a destra della leva: serve il VIEW SEARCH sulle 4 leve
+  (gia' presente per il main_switch, da estendere), non un altro mount.
+  Con +0.20 rad sul polso (ee_base_joint_x) la leva entra: e' esattamente il
+  DOF che il view search deve muovere. Frame: ik_main_switch_8cm_25mm.png.
+
+Resta da fare:
+  a) view search su tutte e 5 le leve (polso) invece del solo main_switch;
+  b) decidere se tenere PIN_BASE per le validazioni e _force_static fuori.
+
+--- AGGIORNAMENTO (stessa sera): la configurazione che RIMETTE IN PIEDI il demo
+
+ROBOT_Z = 0.02 (come a HEAD) + PIN_BASE=1:
+  il modello del demo e' costruito col root a livello del pavimento; con il
+  PIN_BASE la base non viene espulsa ne' si rovescia. Verificato:
+  - posa identica su tutti i campioni: (0.600, 0.165, 0.020), quat (0,0,0,1);
+  - TF_OLD_DATA = 0; un solo /joint_states_restamper;
+  - ArUco trovati ~30 s dopo il pre-aim (con ROBOT_Z=0.25 il pre-aim mira
+    0.25 m sopra il pannello: e' quota di SPAWN, non va alzata);
+  - depth misura tutte e 5 le leve, in linea con i numeri storici:
+      main_switch (0.677, -0.114, 0.197)  Z_cam 0.456
+      lever_switch_1..4 (0.677, -0.056..+0.114, 0.196..0.198)
+  - piano AUTO validato: IK (-1.769, -0.939, -0.386, +0.348), punta/target
+    0.58 cm, "PIANO VALIDATO; NON ESEGUITO".
+=> lo stato "rotto" del WIP era: robot dinamico senza appoggio + TF base
+   doppio + posa sensore 68a4375. Non serviva toccare mount o apertura.
+
+RESIDUO (unico, misurato): il render Gazebo e il TF ottico NON coincidono
+ancora di ~0.13 m in verticale. Con la posa IK a 8 cm e apertura 25 mm:
+  leva main_switch: proiezione TF u=305 v=116 z=0.25 m "nel FOV"
+  render:           la leva sta ~300 px piu' in basso (bordo pannello al
+                    centro-immagine), quindi il mirino cade sul cielo.
+  gz /world/.../pose/info da' per gemini_camera_link ESATTAMENTE la posa del
+  TF (0.450, -0.011, 0.350, stesso quaternione): la catena URDF->SDF del link
+  e' giusta, resta la <pose> del sensore. Provate 3 orientamenti:
+    (-1.570796, 0, -1.570796)  direzione giusta, offset verticale residuo
+    ( 1.570796, -1.570796, 0)  camera sul cielo (nessun ArUco)
+    ( 1.570796, 0, -1.570796)  immagine ribaltata 180 gradi
+  Nota: rpy (1.570796 -1.570796 0) come matrice E' UGUALE a
+  (-1.570796 0 -1.570796): il roll non e' la variabile che sposta l'immagine.
+  PROSSIMO PASSO (economico e definitivo): i due ArUco del pannello hanno
+  posizione nota e vengono gia' rilevati a pixel. Confrontare i 4 angoli
+  rilevati con la proiezione TF degli stessi tag da l'errore render/TF in
+  pixel e in metri, e da li' correggere la <pose> una volta per tutte.
+  I frame docs/media/lever_views_20261121/ik_*_8cm_25mm.png sono la prova:
+  apertura 25 mm applicata e stampata, leva proiettata nel FOV, render 300 px
+  piu' in basso.
+
+=== 2026-11-21 (notte) - IL MIRINO NON COINCIDEVA COL RENDER: RISOLTO ===
+
+Ipotesi in piedi: la <pose> del sensore Gazebo non coincide con
+gemini_camera_optical_frame. Chiusa con una MISURA, non a occhio.
+
+Nuovo tool: scripts/calibrate_render_tf.py (installato nel pacchetto).
+Confronta i 4 angoli dei due ArUco (45 mm, posa nota dall'URDF) rilevati
+nell'immagine vera con la proiezione TF + camera_info degli stessi punti.
+Serve un frame con ENTRAMBI i tag: la posa di pre-aim va bene, la posa di
+arrivo a 8 cm no (un tag esce dal FOV).
+
+Risultato (10 frame, pannello a 46/49 cm, base pinnata a 0.02):
+  errore CAMERA (centro tag, robusto all'ordine degli angoli):
+      (-0.7, -6.5) px   |r| = 6.6 px   ripetibilita' (0.5, 0.1) px
+  in millimetri sul piano del tag:
+      tag 0 (-0.2, -4.6) mm   tag 1 (-0.9, -4.7) mm
+  differenza tra i due tag 0.7 mm  -> offset COSTANTE (traslazione),
+      nessuna componente di rotazione
+  VERDETTO: render e TF ottico COINCIDONO. La <pose> del sensore e' giusta,
+  non va toccata. I ~5 mm residui sono l'offset nominale dell'ottica
+  (0, -0.00755, 0) piu' lo spessore della piastra del marker (1 mm).
+
+=> il commit 68a4375 (posa sensore = rpy del joint ottico) era la REGRESSIONE:
+   orientava il render lungo +Z_link. Ripristinata la posa originale, ora
+   dimostrata giusta dalla misura.
+=> il "disallineamento mirino/leva di ~180 gradi" del 21/11 non e' mai stato
+   un problema di terna ottica: erano (a) il TF base nominale e (b) le QUOTE
+   delle leve sbagliate di 0.25 m (base a 0.25 invece di 0.02). Con quote
+   corrette il mirino cade sulla leva: docs/media/lever_views_20261121/
+   proiezione_vs_render_main_switch.png (leva u=798 v=738 z=0.50 m a pre-aim).
+
+VALIDAZIONE VISIBILITA' A 8 CM, ORA AFFIDABILE (apertura 25 mm applicata e
+stampata sul frame; IK del demo; rimando: la leva nel frame reale):
+  main_switch    u=-144 v= 37 z=0.20 m FUORI FOV
+  lever_switch_1 u=-120 v= 32 z=0.20 m FUORI FOV
+  lever_switch_2 u= -93 v= 29 z=0.20 m FUORI FOV
+  lever_switch_3 u= -62 v= 31 z=0.20 m FUORI FOV
+  lever_switch_4 u= -29 v= 40 z=0.20 m FUORI FOV
+Tutte le leve cadono FUORI dal bordo sinistro di 29-144 px (~2.5-12 gradi):
+e' la PUNTATURA della posa di arrivo, non il mount e non l'apertura.
+Provati gli offset di polso nel tool di cattura (misurati, non a occhio):
+  ee_base_joint_x +0.14 rad -> v 37 -> 174, u quasi fermo (~1000 px/rad su v)
+  ee_base_joint_y +0.25/0.50 rad -> v 197/357, u -160/-133
+Nessuno dei due chiude il gap orizzontale: serve il VIEW SEARCH del demo
+(che sposta la camera di 10 cm fuori asse mantenendo la punta) esteso a
+tutte e 5 le leve, come gia' scritto sopra. Il numero da battere e' questo:
+u >= 0 per tutte, misurato con lo stesso tool.
+
+Frame di evidenza: docs/media/lever_views_20261121/
+  proiezione_vs_render_main_switch.png   (mirino sulla leva, pre-aim)
+  ik_main_switch_8cm_25mm.png            (8 cm: FUORI FOV, il gap reale)
+  ik_lever_switch_2_8cm_25mm.png
+  render_tf_calib.json                   (report della calibrazione)
+
+=== 2026-11-21 (tarda notte) - LE IMMAGINI LEVA ERANO COMUNQUE SBAGLIATE ===
+
+Errore mio: ho guardato solo i numeri (u piu' piccolo di 0 o no) e non le
+immagini. Tutti i frame "leva visibile" mostravano cielo, bordo pannello o
+solo le dita: inutili come prova di visibilita', anche quando la tabella
+diceva "NEL FOV".
+
+Cosa ho verificato guardando davvero:
+1) I 5 frame a 8 cm con la IK nuda hanno la leva fuori dal bordo sinistro
+   (u=-137..-20 px). E' reale, ma l'immagine non mostra nulla di utile.
+2) Con la posa scelta dal view search del demo il main_switch si vede
+   (u=308 v=121 z=0.26) e il mirino cade sulla leva: quella posa e' buona.
+3) Ho aggiunto un aim (scansione j1/polso + verifica con /check_state_validity)
+   per centrare la leva: i frame mostrano la fila leve, ma il MIRINO resta
+   ~80-110 px lontano dalla leva vera.
+
+Causa isolata misurando i blob rossi nel frame reale (pre-aim, dove il TF e'
+calibrato a 6.6 px sugli ArUco):
+  proiezione main_switch = (798,738)
+  blob rossi rilevati    = (540,578) (559,524) (576,600) (617,624) (663,651)
+                           (715,682)
+  => i TAG proiettano giusto (6.6 px) ma le LEVE sono ~80-100 px fuori:
+     l'errore e' nelle COORDINATE delle leve, non nella camera.
+  Le leve usate finora vengono dalla lettura /world/.../pose/info del link
+  (0.677 +-0.115 0.197) e da una misura di profondita' con RGB/depth non
+  sincronizzate (dt 0.16 s). Il link NON e' il centro del pomello rosso:
+  nel panel.urdf.xacro il visual e' a +0.0175 lungo y del link, e il pomello
+  ruota (revolute su x), quindi la posa visibile dipende dallo stato ON/OFF.
+  Errore residuo misurato ~6 cm: non e' spiegabile con il solo offset 0.0175,
+  quindi la quota va presa dal render (o dall'URDF + stato giunto), non da
+  pose/info ne' dalla depth.
+
+Conseguenza: PIN_BASE, TF base, posa sensore e campanatura del supporto sono
+a posto (ArUco 6.6 px, e ho pure aggiunto preserveFixedJoint su
+camera_support_joint, che prima veniva fuso in ee_base). Quello che manca e'
+una misura affidabile della posa delle 5 leve: finche' non c'e', un mirino
+"sulla leva" non e' verificabile e le immagini non vanno pubblicate come
+prova. Il prossimo passo e' ricavare le 5 pose dall'URDF del pannello piu'
+lo stato dei giunti (o misurarle dai blob nel render con la depth
+sincronizzata), poi rifare i 5 frame.
+
+=== 2026-11-21 (fine) - POSE DELLE LEVE: CORRETTE, MA IL RENDER NON SEGUE ===
+
+Fatto: le coordinate delle leve ora vengono dall'URDF, non dai link di gz.
+  link nel panel_base: x = 0.050 / 0.108 / 0.165 / 0.223 / 0.280,
+                       y = 0.020, z = 0.220, con il visual del pomello a
+                       (0, +0.0175, 0) nel frame del link.
+  con lo stato dei giunti letto da /world/.../pose/info (il pomello ruota su x)
+  il centro del pomello rosso e' a world (1.280, y, 0.2025)
+  => in base_link: (0.680, y, 0.1825), y = -0.115 .. +0.115
+Prima usavo (0.677, y, 0.197): z sbagliata di 1.45 cm.
+
+Verifica a pre-aim (dove la proiezione degli ArUco e' calibrata a 6.6 px):
+  proiezioni  main (792,588) l1 (711,582) l2 (633,576) l3 (555,570) l4 (481,564)
+  blob rossi  (793,578) (711,571) (632,566) (554,560) (478,555)
+  => accordo entro (1-3, 9-11) px. Coordinate corrette, ordine corretto
+     (main_switch e' il piu' a destra nell'immagine: la camera guarda +X_base,
+     quindi +u corrisponde a -Y_base).
+
+Poi il muro: a 8 cm, con pose "di osservazione" (aim su j1 e polso), il render
+NON segue la proiezione, e l'errore e' di PROFONDITA':
+  posa di aim: 5 leve proiettate a v=437 tutte sulla stessa riga, u = 78..802
+               (passo 180 px), z_cam = 0.21 m
+  render:      le stesse leve hanno passo 140 px
+  => 180/140 = 1.29: il render vede il pannello a ~0.27 m, TF dice 0.21 m.
+     Cioe' la camera del render sta ~6-7 cm piu' indietro di quella usata per
+     proiettare. A pre-aim l'accordo e' invece perfetto (1% sul passo), quindi
+     lo scostamento compare quando il polso ruota.
+
+Escluso che sia il modello:
+  - MoveIt FK di ee_base per la posa di aim: (0.4897, -0.0330, 0.4257)
+  - /world/.../pose/info ee_base:            (0.4897, -0.0330, 0.4257)
+  - TF base_link->ee_base:                   (0.490,  -0.033,  0.426)
+  coincidono al decimo di millimetro. Anche gemini_camera_link combacia tra
+  TF e gz. Quindi il difetto e' DENTRO la posa del sensore nel render, non
+  nella catena cinematica.
+  Ho gia' aggiunto preserveFixedJoint su camera_support_joint (prima
+  camera_support_link veniva fuso in ee_base): nel SDF ora i tre link ci sono,
+  ma il disaccordo a polso ruotato resta.
+
+Stato delle immagini: NON pubblicabili come prova di visibilita'. L'unico
+frame verificato a occhio e' quello del view search del demo sul main_switch
+(lever_main_switch_demo_arrival_25mm.png). Il prossimo passo e' capire dove
+gz mette davvero il sensore: un marker a profondita' nota (o due marker a
+distanze diverse) misura la posa del render in 3D, e da li' si corregge la
+<pose> una volta per tutte.
+
+--- AGGIORNAMENTO: le 5 immagini ora mostrano davvero le leve ---
+
+Le 5 viste sono state rifatte alla POSA DI PRE-AIM, l'unica dove la proiezione
+e' verificata (accordo con i blob rossi del render entro (1-3, 9-11) px) e dove
+tutte e 5 le leve sono in campo. Coordinate dall'URDF + stato giunti:
+(0.680, -0.115..+0.115, 0.1825). Apertura 25 mm comandata e stampata.
+  main_switch     u=797 v=749 z=0.51 m   (leva piu' a destra nell'immagine)
+  lever_switch_1  u=721 v=743 z=0.52 m
+  lever_switch_2  u=649 v=736 z=0.52 m
+  lever_switch_3  u=576 v=730 z=0.53 m
+  lever_switch_4  u=507 v=724 z=0.54 m   (leva piu' a sinistra)
+Verificate a occhio una per una: il mirino cade sul pomello giusto in tutte.
+
+Resta separato il limite a 8 cm: con la IK nuda la leva sta 20-137 px fuori
+dal bordo; con la posa del view search del demo il main_switch si vede
+(lever_main_switch_demo_arrival_25mm.png). A polso ruotato il render vede il
+pannello ~7 cm piu' lontano di TF (passo 140 px contro 180 px proiettati),
+quindi un mirino a 8 cm NON e' ancora affidabile: quello va chiuso prima di
+usare i frame ravvicinati come prova.
+
+=== DIAGNOSI DEL FANTOMATICO "7 cm render-vs-TF" ===
+
+NON e' un disallineamento render/TF. E' la posa di cattura che non esiste.
+
+Misure che escludono la camera:
+  posa di pre-aim, polso 0.0 : errore ArUco (-0.7, -6.5) px
+  stessa posa, polso +0.20   : (-0.3, -7.5) px
+  stessa posa, polso -0.20   : (-0.7, -6.5) px
+  leve a polso -0.20 (proiezione contro blob rossi del render):
+     proj (796,739) (720,733) (648,727) (576,720) (507,714)
+     blob (796,729) (720,722) (648,716) (575,710) (506,705)
+   -> 0-1 px in orizzontale, ~10 px in verticale (l'offset dell'ottica,
+      0.00755 m: 10 px a 0.5 m). Camera e TF coincidono: 7 px, sempre.
+
+Da dove venivano i "7 cm" e i "19 gradi":
+  il frame anomalo era quello in cui il controller NON aveva raggiunto il
+  goal. Dump dei giunti al momento dello scatto:
+      j1       -1.590 / -1.590
+      j2       -1.155 / -1.155
+      j3       -0.187 / -0.187
+      ee_base_x  -0.010 / +0.716   <-- FERMO AL LIMITE INFERIORE
+      ee_base_y  -0.000 / +0.000
+  Con il polso a -0.010 invece di +0.716 la camera e' ruotata e piu'
+  lontana: la fila delle leve si presenta con passo 140 px invece di 181 e
+  il mirino proiettato (calcolato sul goal) finisce fuori. Non e' un errore
+  di proiezione: e' un errore di POSA. Il passo che cresce lungo la fila
+  (134 -> 171 px) e' la prospettiva vista da una camera ruotata rispetto a
+  quella usata per proiettare.
+  Perche' il giunto va al limite: a 8 cm la posa "di osservazione" chiede
+  j1 + 0.32..0.34 rad e polso +0.40 con la punta a 8 cm dal pannello; il
+  braccio tocca/satura e il polso crolla al limite inferiore. La validita'
+  del goal (check_state_validity) passa perche' e' valutata sul goal, non
+  sul fatto che il controller riesca a tenerlo.
+
+FIX nel tool: prima dello scatto si attende che i giunti siano davvero sul
+goal (--settle-tol, default 0.02 rad, polling su /joint_states, nessun nuovo
+goal) e in caso contrario la riga e' marcata "frame non affidabile" e stampa
+per giunto goal/attuale. Cosi' un frame sbagliato non puo' piu' passare per
+buono senza dirlo.
+
+=== PERCHE' LE IMMAGINI A 8 CM ERANO VUOTE (e cosa resta) ===
+
+1) BUCO NEL RENDER RGB (risolto): con <near>0.01 la camera tagliava il
+   proprio corpo (~1.15 cm dal sensore) e lasciava MEZZA IMMAGINE vuota
+   (colore di sfondo uniforme, pannello e dita assenti). La depth, che ha il
+   suo clip, era perfetta: prova che era il pass colore.
+   FIX: near 0.01 -> 0.002 su camera e depth_camera. Verificato: frame
+   completo (pannello, 5 leve, dita tutte presenti).
+
+2) SENSORE NON AGGANCIATO AL POLSO (in corso): con il sensore dentro
+   gemini_camera_link il render non seguiva ee_base_joint_x/y. Misurato con
+   la depth al pixel proiettato: la camera vera stava 0.27-0.39 m piu'
+   lontana di TF, che e' esattamente l'offset del polso (-0.028, 0, 0.2715).
+   Ho agganciato il sensore direttamente a ee_base con la posa composta
+   (supporto + mount + ottico, poi ruotata di M perche' la camera Gazebo
+   guarda +X e la terna ottica ha z avanti):
+     xyz 0.084288 0.083647 0.030876  rpy -1.542833 -0.048851 1.609570
+   (controllo: applicata nel link ridà la posa originale -1.570796 0
+   -1.570796, che era quella giusta).
+   Dopo il cambio: calibrazione ArUco a pre-aim 6.6 px e a polso +0.2 7.5 px,
+   come prima. MA alle pose di osservazione a 8 cm la depth al pixel
+   proiettato misura ancora 0.25-0.32 m contro 0.20 m di TF, e il pixel e'
+   cielo (rgb_std=0): il sensore non segue ancora il polso come TF.
+
+3) VERIFICA AUTOMATICA NEL TOOL: prima di salvare, capture_gripper_openings
+   controlla (a) che la depth al pixel proiettato valga z +-6 cm e (b) che
+   l'RGB in quel punto NON sia uniforme (rgb_std > 3). Se fallisce prova la
+   candidata successiva e marca la riga. Cosi' un frame vuoto non puo' piu'
+   essere pubblicato senza dirlo: nei run a 8 cm solo main_switch (candidata
+   5) passa, le altre 4 no.
+
+Le 5 immagini pubblicate restano quelle di pre-aim (verificate).

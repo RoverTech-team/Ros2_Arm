@@ -63,3 +63,7 @@ __cmake_systeminformation/CMakeLists.txt
 __cmake_systeminformation/CMakeLists.txt
 .cache/
 Ros2_Arm/
+
+# Config DDS legata alla singola macchina (interfaccia lo0 su macOS):
+# resta in locale, non nel repo condiviso.
+src/rover_arm_panel_description/config/cyclonedds_lo0.xml
